@@ -1,0 +1,257 @@
+.root {
+  --black: #0a0a0a;
+  --black2: #141414;
+  --black3: #1c1c1c;
+  --white: #ffffff;
+  --w2: rgba(255, 255, 255, 0.6);
+  --w3: rgba(255, 255, 255, 0.25);
+  --green: #2e9e3e;
+  --bdr: rgba(255, 255, 255, 0.09);
+  --bdr2: rgba(255, 255, 255, 0.16);
+  --rl: 16px;
+  --rp: 100px;
+
+  min-height: 100vh;
+  background: var(--black);
+  color: var(--white);
+  font-family: var(--font-figtree), "Figtree", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app {
+  max-width: 430px;
+  margin: 0 auto;
+  min-height: 100vh;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 14px;
+  border-bottom: 1px solid var(--bdr);
+  flex-shrink: 0;
+}
+
+.navBack {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--w2);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: var(--font-figtree), "Figtree", sans-serif;
+}
+
+.navBack svg {
+  width: 16px;
+  height: 16px;
+}
+
+.navTitle {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.navSpacer {
+  width: 44px;
+}
+
+.body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 84px;
+}
+
+.body::-webkit-scrollbar {
+  display: none;
+}
+
+.walletHero {
+  padding: 36px 24px 24px;
+  text-align: center;
+}
+
+.walletIconWrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 18px;
+}
+
+.walletLogoImg {
+  height: 60px;
+  width: auto;
+  display: block;
+}
+
+.walletTitle {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.4px;
+  margin-bottom: 8px;
+}
+
+.walletSub {
+  font-size: 14px;
+  color: var(--w2);
+  line-height: 1.5;
+  max-width: 260px;
+  margin: 0 auto;
+}
+
+.walletConnectWrap {
+  padding: 8px 20px;
+}
+
+.connectBtn {
+  width: 100%;
+  padding: 16px 20px;
+  border: none;
+  border-radius: var(--rp);
+  background: var(--green);
+  color: var(--white);
+  font-family: var(--font-figtree), "Figtree", sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.1s, opacity 0.15s;
+}
+
+.connectBtn:active:not(:disabled) {
+  transform: scale(0.97);
+  opacity: 0.85;
+}
+
+.connectBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.walletSkip {
+  text-align: center;
+  padding: 18px;
+  font-size: 13px;
+  color: var(--w3);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  background: none;
+  border: none;
+  width: 100%;
+  font-family: var(--font-figtree), "Figtree", sans-serif;
+}
+
+.walletConnected {
+  padding: 8px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.wcCard {
+  background: var(--black2);
+  border: 1px solid var(--bdr);
+  border-radius: var(--rl);
+  padding: 16px 16px 18px;
+}
+
+.wcRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 0;
+}
+
+.wcK {
+  font-size: 13px;
+  color: var(--w3);
+}
+
+.wcV {
+  font-size: 13px;
+  color: var(--white);
+  font-weight: 600;
+}
+
+.wcAddr {
+  font-family: var(--font-dm-mono), "DM Mono", monospace;
+  font-size: 13px;
+}
+
+.wcStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--green);
+}
+
+.statusDot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--green);
+  flex-shrink: 0;
+}
+
+.wcBalWrap {
+  margin-top: 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--bdr);
+  text-align: center;
+}
+
+.wcBalLabel {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--w3);
+  margin-bottom: 5px;
+}
+
+.wcBal {
+  font-family: var(--font-dm-mono), "DM Mono", monospace;
+  font-size: 30px;
+  color: var(--white);
+  letter-spacing: -0.5px;
+}
+
+.wcUnit {
+  font-size: 15px;
+  color: var(--green);
+  font-weight: 700;
+}
+
+.btnGhost {
+  background: transparent;
+  border: none;
+  color: var(--w3);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  padding: 13px 20px;
+  cursor: pointer;
+  width: 100%;
+  font-family: var(--font-figtree), "Figtree", sans-serif;
+}
+
+.btnGhost:active {
+  opacity: 0.85;
+}
