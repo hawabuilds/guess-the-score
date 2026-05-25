@@ -142,7 +142,7 @@ export default function PredictionModal({
                 max={99}
                 value={homeScore}
                 onChange={(event) => setHomeScore(event.target.value)}
-                disabled={!signedIn || saving || status === "loading"}
+                disabled={!signedIn || saving}
                 required
               />
             </label>
@@ -157,7 +157,7 @@ export default function PredictionModal({
                 max={99}
                 value={awayScore}
                 onChange={(event) => setAwayScore(event.target.value)}
-                disabled={!signedIn || saving || status === "loading"}
+                disabled={!signedIn || saving}
                 required
               />
             </label>
@@ -177,7 +177,7 @@ export default function PredictionModal({
             <button
               type="submit"
               className={`${styles.btn} ${styles.btnGreen}`}
-              disabled={!signedIn || saving || status === "loading"}
+              disabled={!signedIn || saving}
             >
               {saving ? "Saving…" : "Save prediction"}
             </button>
