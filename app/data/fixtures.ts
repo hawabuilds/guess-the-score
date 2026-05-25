@@ -5,6 +5,12 @@ export type Fixture = {
   date: string;
   time: string;
   group: string;
+  tweetId?: string;
+  /** Set when the final score is known — used by score-predictions / score cron. */
+  result?: {
+    homeScore: number;
+    awayScore: number;
+  };
 };
 
 export type CountryCode =
@@ -48,6 +54,7 @@ export const FIXTURES: Fixture[] = [
     date: "2026-06-11",
     time: "19:00",
     group: "A",
+    tweetId: "",
   },
   {
     id: 2,
@@ -56,6 +63,7 @@ export const FIXTURES: Fixture[] = [
     date: "2026-06-12",
     time: "22:00",
     group: "B",
+    tweetId: "",
   },
   {
     id: 3,
@@ -64,6 +72,7 @@ export const FIXTURES: Fixture[] = [
     date: "2026-06-13",
     time: "00:00",
     group: "D",
+    tweetId: "",
   },
   {
     id: 4,
@@ -72,6 +81,7 @@ export const FIXTURES: Fixture[] = [
     date: "2026-06-13",
     time: "22:00",
     group: "C",
+    tweetId: "",
   },
   {
     id: 5,
@@ -80,6 +90,7 @@ export const FIXTURES: Fixture[] = [
     date: "2026-06-15",
     time: "16:00",
     group: "H",
+    tweetId: "",
   },
   {
     id: 6,
@@ -88,8 +99,25 @@ export const FIXTURES: Fixture[] = [
     date: "2026-06-16",
     time: "23:00",
     group: "J",
+    tweetId: "",
+  },
+  {
+    id: 99,
+    home: "Brazil",
+    away: "Argentina",
+    date: "2026-05-25",
+    time: "21:00",
+    group: "T",
+    tweetId: "2058877356769476682",
   },
 ];
+
+export function getFixtureById(
+  matchId: number,
+  fixtures: Fixture[] = FIXTURES,
+): Fixture | undefined {
+  return fixtures.find((fixture) => fixture.id === matchId);
+}
 
 export function fixtureDateTime(fixture: Fixture): Date {
   return new Date(`${fixture.date}T${fixture.time}:00Z`);

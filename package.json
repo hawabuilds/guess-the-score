@@ -6,10 +6,13 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:parser": "npx tsx lib/predictionParser.test.ts",
+    "test:scoring": "npx tsx lib/scoring.test.ts"
   },
   "dependencies": {
     "@rainbow-me/rainbowkit": "^2.2.11",
+    "@supabase/supabase-js": "^2.106.1",
     "@tanstack/react-query": "^5.100.14",
     "country-flag-icons": "^1.6.17",
     "html-to-image": "^1.11.13",

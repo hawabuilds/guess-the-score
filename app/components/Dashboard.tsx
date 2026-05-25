@@ -349,7 +349,7 @@ export default function Dashboard({
           open={predOpen}
           fixture={nextFixture}
           onClose={() => setPredOpen(false)}
-          onOpenX={() => showToast("Opening X…")}
+          onSaved={() => showToast("Prediction saved!")}
         />
 
         <div

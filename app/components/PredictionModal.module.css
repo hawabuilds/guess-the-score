@@ -113,6 +113,80 @@
   color: var(--black);
 }
 
+.btnGreen {
+  background: var(--green);
+  color: var(--white);
+}
+
+.btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.scoreForm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.scoreRow {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.scoreField {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.scoreLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--w2);
+  text-align: center;
+}
+
+.scoreInput {
+  width: 100%;
+  max-width: 88px;
+  padding: 12px 10px;
+  border-radius: var(--r);
+  border: 1px solid var(--bdr2);
+  background: var(--black3);
+  color: var(--white);
+  font-family: var(--font-dm-mono), "DM Mono", monospace;
+  font-size: 28px;
+  font-weight: 500;
+  text-align: center;
+  line-height: 1;
+}
+
+.scoreInput:focus {
+  outline: none;
+  border-color: var(--green);
+}
+
+.scoreDash {
+  font-family: var(--font-dm-mono), "DM Mono", monospace;
+  font-size: 24px;
+  color: var(--w3);
+  padding-bottom: 12px;
+}
+
+.modalError {
+  font-size: 13px;
+  color: #ff8a8a;
+  text-align: center;
+  line-height: 1.4;
+}
+
 .xIcon {
   width: 15px;
   height: 15px;
