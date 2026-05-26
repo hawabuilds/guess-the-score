@@ -30,7 +30,9 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <Providers>
-          <div className="app-shell">{children}</div>
+          <div className="app-viewport">
+            <div className="app-shell">{children}</div>
+          </div>
         </Providers>
       </body>
     </html>

@@ -24,7 +24,8 @@ body {
   color: #ffffff;
 }
 
-/* Mobile: pass-through wrapper — no visual change from before */
+/* Mobile: pass-through wrappers — no visual change from before */
+.app-viewport,
 .app-shell {
   flex: 1;
   display: flex;
@@ -35,21 +36,31 @@ body {
 
 /* Desktop: centered app frame on a subtle branded backdrop */
 @media (min-width: 481px) {
+  html,
   body {
-    align-items: center;
     min-height: 100vh;
     background:
       radial-gradient(
         ellipse 70% 45% at 50% -15%,
-        rgba(46, 158, 62, 0.09) 0%,
+        rgba(46, 158, 62, 0.12) 0%,
         transparent 55%
       ),
       radial-gradient(
         ellipse 50% 35% at 85% 105%,
-        rgba(46, 158, 62, 0.05) 0%,
+        rgba(46, 158, 62, 0.07) 0%,
         transparent 50%
       ),
-      #0a0a0a;
+      #050505;
+  }
+
+  /* Full-width stage; centers the phone column (RainbowKit wraps Providers) */
+  .app-viewport {
+    flex: 1;
+    flex-direction: row;
+    justify-content: center;
+    align-items: flex-start;
+    width: 100%;
+    min-height: 100vh;
   }
 
   .app-shell {
@@ -57,12 +68,12 @@ body {
     width: 100%;
     max-width: 430px;
     min-height: 100vh;
-    border: 1px solid rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.09);
     border-radius: 20px;
     box-shadow:
-      0 0 0 1px rgba(0, 0, 0, 0.35),
-      0 24px 64px rgba(0, 0, 0, 0.5),
-      0 0 100px rgba(46, 158, 62, 0.04);
+      0 0 0 1px rgba(0, 0, 0, 0.45),
+      0 24px 64px rgba(0, 0, 0, 0.55),
+      0 0 120px rgba(46, 158, 62, 0.06);
     overflow: hidden;
   }
 }
