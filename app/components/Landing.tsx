@@ -5,6 +5,7 @@ import { DM_Mono, Figtree } from "next/font/google";
 import { hasSignedInWithXBefore, signInWithX } from "../lib/auth-client";
 import {
   FIXTURES,
+  fixtureDateTime,
   formatFixtureLabel,
   formatKickoffUtc,
 } from "../data/fixtures";
@@ -46,6 +47,12 @@ function XLogo() {
 
 export default function Landing() {
   const [switchModalOpen, setSwitchModalOpen] = useState(false);
+
+  const upcomingFixtures = FIXTURES.filter(
+    (fixture) => fixtureDateTime(fixture) >= new Date(),
+  ).sort(
+    (a, b) => fixtureDateTime(a).getTime() - fixtureDateTime(b).getTime(),
+  );
 
   const handleSignIn = () => {
     if (hasSignedInWithXBefore()) {
@@ -93,7 +100,7 @@ export default function Landing() {
             <section className={styles.matchesBlock}>
               <div className={styles.blockLabel}>Upcoming Matches</div>
               <div className={styles.matchList}>
-                {FIXTURES.slice(0, 3).map((fixture) => (
+                {upcomingFixtures.map((fixture) => (
                   <div key={fixture.id} className={styles.matchRow}>
                     <div className={styles.matchFlagPair}>
                       <TeamFlag team={fixture.home} className={styles.flag} />

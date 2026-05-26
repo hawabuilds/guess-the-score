@@ -1,15 +1,13 @@
 "use client";
 
-import { DM_Mono, Figtree } from "next/font/google";
-import { useSession } from "next-auth/react";
-import { type FormEvent, type MouseEvent, useEffect, useState } from "react";
+import { Figtree } from "next/font/google";
+import { type MouseEvent, useEffect, useState } from "react";
 import {
   formatExampleScore,
   formatFixtureModalSub,
   type Fixture,
 } from "../data/fixtures";
-import { formatHandle, signInWithX } from "../lib/auth-client";
-import { savePrediction } from "../lib/supabase";
+import { fetchMatchPost, type MatchPostResponse } from "../lib/match-post-client";
 import styles from "./PredictionModal.module.css";
 
 const figtree = Figtree({
@@ -18,171 +16,99 @@ const figtree = Figtree({
   variable: "--font-figtree",
 });
 
-const dmMono = DM_Mono({
-  subsets: ["latin"],
-  weight: ["400", "500"],
-  variable: "--font-dm-mono",
-});
-
 type PredictionModalProps = {
   open: boolean;
   fixture: Fixture;
   onClose: () => void;
-  onSaved: () => void;
 };
-
-function parseScore(value: string): number | null {
-  const trimmed = value.trim();
-  if (!/^\d+$/.test(trimmed)) return null;
-  const score = Number.parseInt(trimmed, 10);
-  if (score < 0 || score > 99) return null;
-  return score;
-}
 
 export default function PredictionModal({
   open,
   fixture,
   onClose,
-  onSaved,
 }: PredictionModalProps) {
-  const { data: session, status } = useSession();
-  const [homeScore, setHomeScore] = useState("");
-  const [awayScore, setAwayScore] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [matchPost, setMatchPost] = useState<MatchPostResponse | null>(null);
+  const [loadingPost, setLoadingPost] = useState(false);
+  const [postError, setPostError] = useState<string | null>(null);
 
-  const signedIn = status === "authenticated" && Boolean(session?.user?.id);
+  const accountHandle = matchPost?.account ? `@${matchPost.account}` : "@guessthescoreX";
 
   useEffect(() => {
     if (!open) return;
-    setHomeScore("");
-    setAwayScore("");
-    setSaving(false);
-    setError(null);
+
+    setLoadingPost(true);
+    setMatchPost(null);
+    setPostError(null);
+
+    void fetchMatchPost(fixture.id)
+      .then((data) => {
+        setMatchPost(data);
+        if (data.error) {
+          setPostError(data.error);
+        } else if (!data.found) {
+          setPostError(data.hint ?? null);
+        }
+      })
+      .catch(() => setPostError("Could not load the match post. Try again in a moment."))
+      .finally(() => setLoadingPost(false));
   }, [open, fixture.id]);
 
   const handleBackdropClick = (e: MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget && !saving) {
+    if (e.target === e.currentTarget) {
       onClose();
-    }
-  };
-
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    setError(null);
-
-    if (!signedIn || !session?.user?.id) {
-      setError("Sign in with X to save your prediction.");
-      return;
-    }
-
-    const home = parseScore(homeScore);
-    const away = parseScore(awayScore);
-    if (home === null || away === null) {
-      setError("Enter a valid score for both teams (0–99).");
-      return;
-    }
-
-    setSaving(true);
-    try {
-      await savePrediction({
-        user_id: session.user.id,
-        user_handle: formatHandle(session.user.name),
-        match_id: fixture.id,
-        home_score: home,
-        away_score: away,
-      });
-      onClose();
-      onSaved();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save prediction.");
-    } finally {
-      setSaving(false);
     }
   };
 
   return (
     <div
       id="pred-modal"
-      className={`${styles.modalBg} ${figtree.variable} ${dmMono.variable}${open ? ` ${styles.modalBgOpen}` : ""}`}
+      className={`${styles.modalBg} ${figtree.variable}${open ? ` ${styles.modalBgOpen}` : ""}`}
       onClick={handleBackdropClick}
       role="dialog"
       aria-modal="true"
       aria-hidden={!open}
-      aria-label="Predict the score"
+      aria-label="Predict on X"
     >
       <div className={styles.modalSheet}>
         <div className={styles.modalHandle} />
-        <div className={styles.modalTitle}>Predict the score</div>
+        <div className={styles.modalTitle}>Predict on X</div>
         <div className={styles.modalSub}>{formatFixtureModalSub(fixture)}</div>
 
-        {!signedIn && status !== "loading" ? (
-          <div className={styles.modalNote}>
-            Sign in with X to save your prediction for this match.
-          </div>
+        <div className={styles.modalNote}>
+          Reply under {accountHandle}&apos;s match post with your score. Example:{" "}
+          <strong className={styles.modalNoteExample}>
+            {matchPost?.exampleReply ?? formatExampleScore(fixture)}
+          </strong>
+        </div>
+
+        {loadingPost ? (
+          <div className={styles.modalNote}>Finding the match post…</div>
+        ) : matchPost?.found && matchPost.replyIntentUrl ? (
+          <a
+            className={`${styles.btn} ${styles.btnWhite}`}
+            href={matchPost.replyIntentUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Reply on X
+          </a>
         ) : (
           <div className={styles.modalNote}>
-            Your prediction is saved here and also counts if you reply on X.
-            Example:{" "}
-            <strong className={styles.modalNoteExample}>
-              {formatExampleScore(fixture)}
-            </strong>
+            {postError ??
+              `No match post found yet. ${accountHandle} needs to post this fixture with both team names.`}
           </div>
         )}
 
-        <form className={styles.scoreForm} onSubmit={handleSubmit}>
-          <div className={styles.scoreRow}>
-            <label className={styles.scoreField}>
-              <span className={styles.scoreLabel}>{fixture.home}</span>
-              <input
-                className={styles.scoreInput}
-                type="number"
-                inputMode="numeric"
-                min={0}
-                max={99}
-                value={homeScore}
-                onChange={(event) => setHomeScore(event.target.value)}
-                disabled={!signedIn || saving}
-                required
-              />
-            </label>
-            <span className={styles.scoreDash}>–</span>
-            <label className={styles.scoreField}>
-              <span className={styles.scoreLabel}>{fixture.away}</span>
-              <input
-                className={styles.scoreInput}
-                type="number"
-                inputMode="numeric"
-                min={0}
-                max={99}
-                value={awayScore}
-                onChange={(event) => setAwayScore(event.target.value)}
-                disabled={!signedIn || saving}
-                required
-              />
-            </label>
-          </div>
-
-          {error ? <div className={styles.modalError}>{error}</div> : null}
-
-          {!signedIn && status !== "loading" ? (
-            <button
-              type="button"
-              className={`${styles.btn} ${styles.btnWhite}`}
-              onClick={() => void signInWithX()}
-            >
-              Sign in with X
-            </button>
-          ) : (
-            <button
-              type="submit"
-              className={`${styles.btn} ${styles.btnGreen}`}
-              disabled={!signedIn || saving}
-            >
-              {saving ? "Saving…" : "Save prediction"}
-            </button>
-          )}
-        </form>
+        {matchPost?.postUrl ? (
+          <a
+            className={styles.modalLink}
+            href={matchPost.postUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            View match post on X
+          </a>
+        ) : null}
       </div>
     </div>
   );

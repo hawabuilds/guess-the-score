@@ -1,17 +1,21 @@
 "use client";
 
 import { DM_Mono, Figtree } from "next/font/google";
-import { Fragment } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import {
   avatarInitials,
-  LB_PLAYERS,
   LB_TIERS,
   tierForRank,
-  type LeaderboardPlayer,
   type LeaderboardTier,
 } from "../data/leaderboard";
 import { sessionUserIdentity } from "../lib/auth-client";
+import {
+  fetchLeaderboard,
+  handleToInitials,
+  handleToUsername,
+  type ApiLeaderboardPlayer,
+} from "../lib/leaderboard-client";
 import AppTabBar from "./AppTabBar";
 import LbAvatar from "./LbAvatar";
 import styles from "./Leaderboard.module.css";
@@ -56,18 +60,15 @@ function TierHeader({ tier }: { tier: LeaderboardTier }) {
 function LeaderboardRow({
   player,
   tier,
-  userHandle,
-  userInitials,
-  userAv,
+  isMe,
   userImage,
 }: {
-  player: LeaderboardPlayer;
+  player: ApiLeaderboardPlayer;
   tier: LeaderboardTier | undefined;
-  userHandle: string;
-  userInitials: string;
-  userAv: string;
+  isMe: boolean;
   userImage?: string;
 }) {
+  const username = handleToUsername(player.user_handle);
   const rowTierClass =
     tier?.rowClass === "t1"
       ? styles.lbRowT1
@@ -77,67 +78,26 @@ function LeaderboardRow({
 
   return (
     <div
-      className={`${styles.lbRow} ${rowTierClass} ${player.me ? styles.lbRowMe : ""}`}
+      className={`${styles.lbRow} ${rowTierClass} ${isMe ? styles.lbRowMe : ""}`}
     >
       <div
-        className={`${styles.lbPos} ${player.r <= 3 ? styles.lbPosTop : ""} ${player.me ? styles.lbPosMe : ""}`}
+        className={`${styles.lbPos} ${player.rank <= 3 ? styles.lbPosTop : ""} ${isMe ? styles.lbPosMe : ""}`}
       >
-        {player.r}
+        {player.rank}
       </div>
       <LbAvatar
-        username={player.me ? userAv : player.av}
-        initials={player.me ? userInitials : avatarInitials(player.av)}
-        imageSrc={player.me ? userImage : undefined}
-        me={player.me}
+        username={username}
+        initials={isMe ? handleToInitials(player.user_handle) : avatarInitials(username)}
+        imageSrc={isMe ? userImage : undefined}
+        me={isMe}
       />
-      <div className={`${styles.lbHandle} ${player.me ? styles.lbHandleMe : ""}`}>
-        {player.me ? userHandle : player.h}
-        {player.me ? " · you" : ""}
+      <div className={`${styles.lbHandle} ${isMe ? styles.lbHandleMe : ""}`}>
+        {player.user_handle}
+        {isMe ? " · you" : ""}
       </div>
-      <div className={`${styles.lbPts} ${player.me ? styles.lbPtsMe : ""}`}>
-        {player.pts.toLocaleString()}
+      <div className={`${styles.lbPts} ${isMe ? styles.lbPtsMe : ""}`}>
+        {player.total_points.toLocaleString()}
       </div>
-    </div>
-  );
-}
-
-function FullLeaderboardList({
-  userHandle,
-  userInitials,
-  userAv,
-  userImage,
-}: {
-  userHandle: string;
-  userInitials: string;
-  userAv: string;
-  userImage?: string;
-}) {
-  let lastTier: LeaderboardTier | null = null;
-
-  return (
-    <div className={styles.lbList}>
-      {LB_PLAYERS.map((player) => {
-        const tier = tierForRank(player.r);
-        const showHeader = tier && tier !== lastTier;
-
-        if (tier) {
-          lastTier = tier;
-        }
-
-        return (
-          <Fragment key={player.r}>
-            {showHeader && tier ? <TierHeader tier={tier} /> : null}
-            <LeaderboardRow
-              player={player}
-              tier={tier}
-              userHandle={userHandle}
-              userInitials={userInitials}
-              userAv={userAv}
-              userImage={userImage}
-            />
-          </Fragment>
-        );
-      })}
     </div>
   );
 }
@@ -153,6 +113,35 @@ export default function Leaderboard({
     session?.user?.name,
     session?.user?.image,
   );
+  const [players, setPlayers] = useState<ApiLeaderboardPlayer[]>([]);
+  const [totalPlayers, setTotalPlayers] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void fetchLeaderboard()
+      .then((data) => {
+        if (cancelled) return;
+        setPlayers(data.players);
+        setTotalPlayers(data.totalPlayers);
+        setError(null);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setError(err instanceof Error ? err.message : "Failed to load rankings");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  let lastTier: LeaderboardTier | null = null;
 
   return (
     <div
@@ -183,18 +172,48 @@ export default function Leaderboard({
 
         <div className={styles.body}>
           <div className={styles.lbHero}>
-            <h1 className={styles.lbTitle}>Today · Leaderboard</h1>
+            <h1 className={styles.lbTitle}>Leaderboard</h1>
             <p className={styles.lbSubText}>
-              14,200 players · Resets daily at midnight UTC
+              {loading
+                ? "Loading rankings…"
+                : `${totalPlayers.toLocaleString()} players · Points update after each match`}
             </p>
           </div>
           <div className={styles.lbListWrap}>
-            <FullLeaderboardList
-              userHandle={user.handle}
-              userInitials={user.initials}
-              userAv={user.username}
-              userImage={user.image}
-            />
+            {error ? (
+              <p className={styles.lbSubText}>{error}</p>
+            ) : loading ? (
+              <p className={styles.lbSubText}>Loading…</p>
+            ) : players.length === 0 ? (
+              <p className={styles.lbSubText}>
+                No scored predictions yet. Points appear here after the first match is scored.
+              </p>
+            ) : (
+              <div className={styles.lbList}>
+                {players.map((player) => {
+                  const tier = tierForRank(player.rank);
+                  const showHeader = tier && tier !== lastTier;
+                  const isMe =
+                    Boolean(session?.user?.id) && player.user_id === session?.user?.id;
+
+                  if (tier) {
+                    lastTier = tier;
+                  }
+
+                  return (
+                    <Fragment key={player.user_id}>
+                      {showHeader && tier ? <TierHeader tier={tier} /> : null}
+                      <LeaderboardRow
+                        player={player}
+                        tier={tier}
+                        isMe={isMe}
+                        userImage={isMe ? user.image : undefined}
+                      />
+                    </Fragment>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
 

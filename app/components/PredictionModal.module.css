@@ -187,6 +187,27 @@
   line-height: 1.4;
 }
 
+.modalDivider {
+  margin: 16px 0 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--w3);
+  text-align: center;
+}
+
+.modalLink {
+  display: block;
+  margin-top: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--w2);
+  text-align: center;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .xIcon {
   width: 15px;
   height: 15px;

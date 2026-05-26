@@ -13,18 +13,18 @@ function loadEnv() {
 function rejectReason(text, fixture) {
   const exp = JSON.parse(explainPrediction(text, fixture));
   if (!exp.teams) {
-    return "Missing one or both team names (need Brazil and Argentina, or aliases)";
+    return "Missing one or both team names (need Saint-Étienne and Nice, or aliases)";
   }
   if (!exp.scores) {
-    return "Both teams found but no valid numeric score (e.g. 2-1, 2 - 1, or Brazil 2 Argentina 1)";
+    return "Both teams found but no valid numeric score (e.g. 2-1, 2 - 1, or St Etienne 2 Nice 1)";
   }
   return "Unknown";
 }
 
 loadEnv();
 
-const fixture = getFixtureById(99);
-if (!fixture?.tweetId) throw new Error("Fixture 99 missing tweetId");
+const fixture = getFixtureById(1);
+if (!fixture?.tweetId) throw new Error("Fixture 1 missing tweetId — set tweetId after posting the match tweet");
 
 const replies = await fetchReplies(fixture.tweetId);
 const seenAuthors = new Set();

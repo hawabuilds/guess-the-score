@@ -18,24 +18,17 @@ type FoundTeams = {
 };
 
 const TEAM_ALIASES: Record<string, readonly string[]> = {
-  Mexico: ["Mexico", "MEX"],
-  "South Africa": ["South Africa", "South African", "RSA", "Bafana"],
-  Canada: ["Canada", "CAN"],
-  "Bosnia & Herzegovina": [
-    "Bosnia & Herzegovina",
-    "Bosnia and Herzegovina",
-    "Bosnia-Herzegovina",
-    "Bosnia",
-    "BiH",
+  "Saint-Étienne": [
+    "Saint-Étienne",
+    "Saint-Etienne",
+    "Saint Etienne",
+    "St Etienne",
+    "St. Etienne",
+    "St-Etienne",
+    "ASSE",
+    "Les Verts",
   ],
-  USA: ["USA", "U.S.A.", "U.S.", "US", "United States", "United States of America"],
-  Paraguay: ["Paraguay", "PAR"],
-  Brazil: ["Brazil", "Brasil", "BRA"],
-  Morocco: ["Morocco", "MAR"],
-  Spain: ["Spain", "España", "Espana", "ESP"],
-  "Cape Verde": ["Cape Verde", "Cabo Verde", "CV"],
-  Argentina: ["Argentina", "ARG"],
-  Algeria: ["Algeria", "ALG"],
+  Nice: ["Nice", "OGC Nice", "Les Aiglons", "Aiglons"],
 };
 
 const SCORE_PATTERN = /(\d{1,2})\s*(?:[-:–—]|(?:\s+))\s*(\d{1,2})/;
@@ -59,12 +52,21 @@ export function getTeamAliases(teamName: string): string[] {
   return [...new Set([teamName, ...aliases])].sort((a, b) => b.length - a.length);
 }
 
+function stripAccents(text: string): string {
+  return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+/** Case- and accent-insensitive text for team alias matching. */
+export function normalizeForTeamMatch(text: string): string {
+  return stripAccents(text.toLowerCase());
+}
+
 function findEarliestTeamMatch(text: string, aliases: string[]): TeamMatch | null {
-  const lower = text.toLowerCase();
+  const lower = normalizeForTeamMatch(text);
   let best: TeamMatch | null = null;
 
   for (const alias of aliases) {
-    const aliasLower = alias.toLowerCase();
+    const aliasLower = normalizeForTeamMatch(alias);
     let from = 0;
 
     while (from < lower.length) {

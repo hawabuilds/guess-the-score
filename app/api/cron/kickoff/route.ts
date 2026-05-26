@@ -1,7 +1,5 @@
-import { FIXTURES } from "@/app/data/fixtures";
 import { isMatchCollected, markMatchCollected } from "@/app/lib/supabase";
-import { collectPredictionsForFixture } from "@/lib/collectPredictions";
-import { isCronAuthorized } from "@/lib/cronAuth";
+import { collectPredictionsForFixture } from "@/lib/collectPredictions";import { isCronAuthorized } from "@/lib/cronAuth";
 import { getFixturesDueForCollection } from "@/lib/kickoff";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -42,7 +40,6 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     checkedAt: new Date().toISOString(),
-    fixturesWithTweet: FIXTURES.filter((f) => f.tweetId?.trim()).length,
     dueForCollection: dueFixtures.map((f) => f.id),
     results,
   });

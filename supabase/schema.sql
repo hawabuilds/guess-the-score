@@ -10,11 +10,20 @@ create table if not exists match_state (
   predictions_collected_at timestamptz,
   scored_at timestamptz,
   final_home_score integer,
-  final_away_score integer
+  final_away_score integer,
+  match_tweet_id text
 );
+
+alter table match_state
+  add column if not exists match_tweet_id text;
 
 -- RLS: allow anon key (same as predictions) for server-side upserts.
 alter table match_state enable row level security;
+
+-- Leaderboard reads scored predictions (points not null).
+-- If missing, add:
+-- create policy "Allow anon select on predictions"
+--   on predictions for select to anon using (true);
 
 create policy "Allow anon select on match_state"
   on match_state for select to anon using (true);

@@ -6,6 +6,8 @@ export type Fixture = {
   time: string;
   group: string;
   tweetId?: string;
+  /** football-data.org match id for live scores + auto-scoring. */
+  externalFixtureId?: number;
   /** Set when the final score is known — used by score-predictions / score cron. */
   result?: {
     homeScore: number;
@@ -13,102 +15,27 @@ export type Fixture = {
   };
 };
 
-export type CountryCode =
-  | "MX"
-  | "ZA"
-  | "CA"
-  | "BA"
-  | "US"
-  | "PY"
-  | "BR"
-  | "MA"
-  | "ES"
-  | "CV"
-  | "AR"
-  | "DZ";
+export type CountryCode = "FR";
 
 export const TEAM_COUNTRY_CODES: Record<string, CountryCode> = {
-  Mexico: "MX",
-  "South Africa": "ZA",
-  Canada: "CA",
-  "Bosnia & Herzegovina": "BA",
-  USA: "US",
-  Paraguay: "PY",
-  Brazil: "BR",
-  Morocco: "MA",
-  Spain: "ES",
-  "Cape Verde": "CV",
-  Argentina: "AR",
-  Algeria: "DZ",
+  "Saint-Étienne": "FR",
+  Nice: "FR",
 };
 
 export function getTeamCountryCode(team: string): CountryCode {
-  return TEAM_COUNTRY_CODES[team] ?? "BR";
+  return TEAM_COUNTRY_CODES[team] ?? "FR";
 }
 
+/** Ligue 1 relegation playoff — first leg, Tue 26 May 2026 18:45 UTC. */
 export const FIXTURES: Fixture[] = [
   {
     id: 1,
-    home: "Mexico",
-    away: "South Africa",
-    date: "2026-06-11",
-    time: "19:00",
-    group: "A",
+    home: "Saint-Étienne",
+    away: "Nice",
+    date: "2026-05-26",
+    time: "18:45",
+    group: "L1 Playoff",
     tweetId: "",
-  },
-  {
-    id: 2,
-    home: "Canada",
-    away: "Bosnia & Herzegovina",
-    date: "2026-06-12",
-    time: "22:00",
-    group: "B",
-    tweetId: "",
-  },
-  {
-    id: 3,
-    home: "USA",
-    away: "Paraguay",
-    date: "2026-06-13",
-    time: "00:00",
-    group: "D",
-    tweetId: "",
-  },
-  {
-    id: 4,
-    home: "Brazil",
-    away: "Morocco",
-    date: "2026-06-13",
-    time: "22:00",
-    group: "C",
-    tweetId: "",
-  },
-  {
-    id: 5,
-    home: "Spain",
-    away: "Cape Verde",
-    date: "2026-06-15",
-    time: "16:00",
-    group: "H",
-    tweetId: "",
-  },
-  {
-    id: 6,
-    home: "Argentina",
-    away: "Algeria",
-    date: "2026-06-16",
-    time: "23:00",
-    group: "J",
-    tweetId: "",
-  },
-  {
-    id: 99,
-    home: "Brazil",
-    away: "Argentina",
-    date: "2026-05-25",
-    time: "21:00",
-    group: "T",
-    tweetId: "2058877356769476682",
   },
 ];
 
@@ -151,7 +78,7 @@ export function formatExampleScore(fixture: Fixture): string {
 }
 
 export function formatGroupLine(fixture: Fixture): string {
-  return `${formatKickoffUtc(fixture)} · Group ${fixture.group}`;
+  return `${formatKickoffUtc(fixture)} · ${fixture.group}`;
 }
 
 export function formatFixtureDateShort(date: string): string {

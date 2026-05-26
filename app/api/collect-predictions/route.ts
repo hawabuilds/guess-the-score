@@ -30,14 +30,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: `Unknown matchId: ${matchId}` }, { status: 404 });
   }
 
-  const tweetId = fixture.tweetId?.trim();
-  if (!tweetId) {
-    return NextResponse.json(
-      { error: `Fixture ${matchId} has no tweetId configured` },
-      { status: 400 },
-    );
-  }
-
   try {
     const result = await collectPredictionsForFixture(fixture);
     return NextResponse.json(result);

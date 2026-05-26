@@ -1,5 +1,6 @@
 import type { Fixture } from "../app/data/fixtures";
 import { savePrediction } from "../app/lib/supabase";
+import { resolveMatchTweetId } from "./resolveMatchTweet";
 import { fetchReplies } from "./fetchReplies";
 import { parsePrediction } from "./predictionParser";
 
@@ -20,7 +21,13 @@ function formatHandle(username: string): string {
 export async function collectPredictionsForFixture(
   fixture: Fixture,
 ): Promise<CollectResult> {
-  const tweetId = fixture.tweetId!.trim();
+  const tweetId = await resolveMatchTweetId(fixture);
+  if (!tweetId) {
+    throw new Error(
+      `No match post found for fixture ${fixture.id}. Post from @guessthescoreX with both team names, or set tweetId.`,
+    );
+  }
+
   const replies = await fetchReplies(tweetId);
   const seenAuthors = new Set<string>();
   let validPredictionsSaved = 0;
