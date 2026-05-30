@@ -95,6 +95,7 @@
     "connectTitle": "连接你的钱包",
     "connectedSub": "你的奖金（以 BNB 支付）将发送到此钱包。",
     "connectSub": "奖金将发送到这里。奖品以加密货币（BNB）支付。仅参与游戏无需钱包。",
+    "connectMetaMaskHint": "领取奖励请在本浏览器选择 MetaMask，不要扫码。扫码 / WalletConnect 需要手机与本页面同时保持打开。",
     "status": "状态",
     "connected": "已连接",
     "network": "网络",
@@ -135,7 +136,14 @@
     "retry": "重试",
     "connectWalletHint": "连接钱包以接收 tBNB。",
     "goToWallet": "打开钱包",
-    "claimFailed": "领取失败 — 请检查钱包网络后重试"
+    "claimFailed": "领取失败 — 请检查钱包网络后重试",
+    "claimMetaMaskHint": "两步：(1) 如有提示请切换到 BSC 测试网，(2) 确认领取 — MetaMask 须显示合约调用和 gas 费用，不能只有“切换网络”。",
+    "claimWcHint": "你通过扫码连接。领取请改用本浏览器内的 MetaMask（钱包 → MetaMask）。扫码后在手机上确认常会失败。",
+    "claimWcBusy": "请在手机上确认，然后立即返回本浏览器标签页并保持打开直至完成。",
+    "claimSuccess": "链上领取成功",
+    "claimSuccessTestnet": "已在 BSC 测试网领取",
+    "viewOnBscScan": "在 BscScan 查看交易",
+    "linkingWallet": "正在绑定此 MetaMask 地址…"
   },
   "predictionModal": {
     "ariaLabel": "在 X 上预测",

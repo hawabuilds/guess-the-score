@@ -5,13 +5,11 @@ import type { ClientPayoutConfig } from "@/app/lib/payout-config-client";
 import { formatClaimError } from "@/app/lib/formatClaimError";
 import {
   getAccount,
-  getConnectorClient,
   switchChain,
   waitForTransactionReceipt,
+  writeContract,
 } from "@wagmi/core";
 import type { Address, Hex } from "viem";
-import { encodeFunctionData } from "viem";
-import { bsc, bscTestnet } from "viem/chains";
 
 type WagmiPayoutChainId = (typeof config)["chains"][number]["id"];
 
@@ -24,10 +22,6 @@ function toWagmiChainId(chainId: number): WagmiPayoutChainId {
     );
   }
   return chainId;
-}
-
-function chainForId(chainId: number) {
-  return chainId === 97 ? bscTestnet : bsc;
 }
 
 function normalizeBytes32(value: string): Hex {
@@ -84,7 +78,6 @@ export async function submitClaimTransaction(
   onPhase?: (phase: SubmitClaimPhase) => void,
 ): Promise<Hex> {
   const { payout, voucher, account, wagmiChainId } = params;
-  const chain = chainForId(payout.chainId);
 
   const args = [
     BigInt(voucher.epochId),
@@ -105,41 +98,16 @@ export async function submitClaimTransaction(
     );
   }
 
-  const client = await getConnectorClient(config, {
-    chainId: wagmiChainId,
-    account,
-  });
-
   onPhase?.("wallet-confirm");
 
-  let hash: Hex;
-  try {
-    hash = await client.writeContract({
-      address: payout.contractAddress,
-      abi: scorePayoutAbi,
-      functionName: "claim",
-      args,
-      account,
-      chain,
-    });
-  } catch (writeErr) {
-    const data = encodeFunctionData({
-      abi: scorePayoutAbi,
-      functionName: "claim",
-      args,
-    });
-
-    try {
-      hash = await client.sendTransaction({
-        to: payout.contractAddress,
-        data,
-        account,
-        chain,
-      });
-    } catch {
-      throw writeErr;
-    }
-  }
+  const hash = await writeContract(config, {
+    address: payout.contractAddress,
+    abi: scorePayoutAbi,
+    functionName: "claim",
+    args,
+    account,
+    chainId: wagmiChainId,
+  });
 
   onPhase?.("mining");
 
