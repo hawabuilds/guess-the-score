@@ -1,5 +1,6 @@
 import {
   createPayoutPublicClient,
+  readMaxOpenEpochPotWei,
   readPublicPayoutConfig,
   scorePayoutAbi,
 } from "@/lib/payoutContract";
@@ -113,14 +114,28 @@ export async function ensureEpochOpenedOnChain(
     return { status: "error", reason: "Epoch pot must be greater than zero" };
   }
 
+  const funding = await readMaxOpenEpochPotWei();
+  if (!funding) {
+    return { status: "skipped", reason: "Payout contract not configured" };
+  }
+
+  const potToOpen =
+    potWei > funding.maxPot ? funding.maxPot : potWei;
+  if (potToOpen <= 0n) {
+    return {
+      status: "error",
+      reason: `Contract holds ${formatBnb(funding.balance)} tBNB with ${formatBnb(funding.totalReserved)} already reserved — no unreserved balance left for a new epoch`,
+    };
+  }
+
   const existing = await readOnChainEpoch(epochId);
   if (existing?.open) {
-    if (existing.pot === potWei) {
+    if (existing.pot === potToOpen || existing.pot === potWei) {
       return { status: "already_open", pot: existing.pot };
     }
     return {
       status: "error",
-      reason: `Epoch ${epochId} is already open on-chain with pot ${existing.pot.toString()} wei, but the app expects ${potWei.toString()} wei — openEpoch cannot change the pot; align funding or contact the operator`,
+      reason: `Epoch ${epochId} is already open on-chain with pot ${formatBnb(existing.pot)} tBNB, but the app expects ${formatBnb(potWei)} — openEpoch cannot change the pot; align funding or contact the operator`,
     };
   }
 
@@ -167,8 +182,7 @@ export async function ensureEpochOpenedOnChain(
     if (/insufficient BNB held/i.test(message)) {
       return {
         status: "error",
-        reason:
-          "Contract does not hold enough tBNB to reserve this epoch pot — send tBNB to the payout contract address, then retry",
+        reason: `Contract cannot reserve ${formatBnb(potToOpen)} tBNB for this epoch — balance ${formatBnb(funding.balance)}, already reserved on-chain ${formatBnb(funding.totalReserved)} (max new pot ≈ ${formatBnb(funding.maxPot)} tBNB)`,
       };
     }
     if (/epochId not increasing/i.test(message)) {
@@ -179,6 +193,12 @@ export async function ensureEpochOpenedOnChain(
     }
     return { status: "error", reason: message };
   }
+}
+
+function formatBnb(wei: bigint): string {
+  const whole = wei / 10n ** 18n;
+  const frac = (wei % 10n ** 18n) / 10n ** 14n;
+  return frac > 0n ? `${whole}.${frac.toString().padStart(4, "0").replace(/0+$/, "")}` : whole.toString();
 }
 
 export async function readEpochRemainingWei(

@@ -4,6 +4,7 @@ import {
   getPayoutContractBalanceWei,
   isVoucherClaimedOnChain,
   readPublicPayoutConfig,
+  readTotalReservedOnChain,
   type PublicPayoutConfig,
 } from "@/lib/payoutContract";
 import { payoutAmountWei } from "@/lib/payoutTiers";
@@ -107,6 +108,7 @@ async function listUnclaimedSnapshotPayouts(
 export type AvailableEpochPot = {
   contractBalanceWei: bigint;
   reservedLiabilityWei: bigint;
+  totalReservedOnChainWei: bigint;
   availablePotWei: bigint;
   config: PublicPayoutConfig;
 };
@@ -122,14 +124,26 @@ export async function getAvailableEpochPotWei(
   if (!onChain) return null;
 
   const reservedLiabilityWei = await sumUnclaimedPayoutLiabilityWei(forEpochId);
-  const availablePotWei =
+  const totalReservedOnChainWei =
+    (await readTotalReservedOnChain()) ?? 0n;
+
+  const freeByDbLiability =
     onChain.balance > reservedLiabilityWei
       ? onChain.balance - reservedLiabilityWei
       : 0n;
+  const freeOnChain =
+    onChain.balance > totalReservedOnChainWei
+      ? onChain.balance - totalReservedOnChainWei
+      : 0n;
+
+  // openEpoch requires balance >= totalReserved + pot — use the tighter cap.
+  const availablePotWei =
+    freeOnChain < freeByDbLiability ? freeOnChain : freeByDbLiability;
 
   return {
     contractBalanceWei: onChain.balance,
     reservedLiabilityWei,
+    totalReservedOnChainWei,
     availablePotWei,
     config: onChain.config,
   };

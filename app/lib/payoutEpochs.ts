@@ -94,6 +94,7 @@ export function parsePotWei(raw: string | null | undefined): bigint | null {
 export type EpochPotSyncMeta = {
   contractBalanceWei: string;
   reservedLiabilityWei: string;
+  totalReservedOnChainWei: string;
   availablePotWei: string;
   epochOpenOnChain?: EnsureEpochOpenResult;
 };
@@ -149,6 +150,7 @@ export async function ensurePayoutEpochForSnapshot(
   const potSync: EpochPotSyncMeta = {
     contractBalanceWei: available.contractBalanceWei.toString(),
     reservedLiabilityWei: available.reservedLiabilityWei.toString(),
+    totalReservedOnChainWei: available.totalReservedOnChainWei.toString(),
     availablePotWei: available.availablePotWei.toString(),
     epochOpenOnChain,
   };

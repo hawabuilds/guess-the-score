@@ -58,6 +58,13 @@ export const scorePayoutAbi = [
   },
   {
     type: "function",
+    name: "totalReserved",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
     name: "epochRemaining",
     stateMutability: "view",
     inputs: [{ name: "epochId", type: "uint256" }],
@@ -139,6 +146,39 @@ export async function getPayoutContractBalanceWei(): Promise<{
   const balance = await client.getBalance({ address: config.contractAddress });
 
   return { balance, config };
+}
+
+/** BNB already reserved by open epochs on the contract (pot minus claimed per epoch). */
+export async function readTotalReservedOnChain(): Promise<bigint | null> {
+  const config = readPublicPayoutConfig();
+  if (!config) return null;
+
+  const client = createPayoutPublicClient(config);
+  return client.readContract({
+    address: config.contractAddress,
+    abi: scorePayoutAbi,
+    functionName: "totalReserved",
+  });
+}
+
+/** Max pot a new openEpoch can use: balance − totalReserved (contract rule). */
+export async function readMaxOpenEpochPotWei(): Promise<{
+  balance: bigint;
+  totalReserved: bigint;
+  maxPot: bigint;
+} | null> {
+  const onChain = await getPayoutContractBalanceWei();
+  if (!onChain) return null;
+
+  const totalReserved = (await readTotalReservedOnChain()) ?? 0n;
+  const maxPot =
+    onChain.balance > totalReserved ? onChain.balance - totalReserved : 0n;
+
+  return {
+    balance: onChain.balance,
+    totalReserved,
+    maxPot,
+  };
 }
 
 export async function isVoucherClaimedOnChain(

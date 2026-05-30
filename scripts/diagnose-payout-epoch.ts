@@ -6,7 +6,12 @@ import { config as loadEnv } from "dotenv";
 loadEnv({ path: ".env.local" });
 loadEnv({ path: ".env" });
 import { epochIdForDate } from "../lib/epochId";
-import { readPublicPayoutConfig } from "../lib/payoutContract";
+import {
+  readMaxOpenEpochPotWei,
+  readPublicPayoutConfig,
+} from "../lib/payoutContract";
+import { getAvailableEpochPotWei } from "../lib/payoutLiability";
+import { getSupabaseAdminClient } from "../app/lib/supabase";
 import {
   readContractSignerAddress,
   readLatestEpochIdOnChain,
@@ -34,6 +39,31 @@ async function main() {
 
   console.log("latestEpochId", latest?.toString() ?? "n/a");
   console.log("epoch", epoch);
+
+  const funding = await readMaxOpenEpochPotWei();
+  if (funding) {
+    console.log("balanceWei", funding.balance.toString());
+    console.log("totalReservedOnChainWei", funding.totalReserved.toString());
+    console.log("maxOpenEpochPotWei", funding.maxPot.toString());
+  }
+
+  const available = await getAvailableEpochPotWei(epochId);
+  if (available) {
+    console.log("dbLiabilityWei", available.reservedLiabilityWei.toString());
+    console.log("availablePotWei (min cap)", available.availablePotWei.toString());
+  }
+
+  try {
+    const supabase = getSupabaseAdminClient();
+    const { data } = await supabase
+      .from("payout_epochs")
+      .select("epoch_id, pot_wei, finalized_at")
+      .eq("epoch_id", Number(epochId))
+      .maybeSingle();
+    console.log("payout_epochs row", data);
+  } catch (e) {
+    console.log("payout_epochs row", "(no supabase)", e);
+  }
 
   const rawKey = process.env.SIGNER_PRIVATE_KEY?.trim();
   if (rawKey && signer) {
