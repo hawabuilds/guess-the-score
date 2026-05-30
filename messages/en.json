@@ -161,7 +161,7 @@
     "snapshotAlt": "Your win — press and hold to save",
     "shareOnX": "Share on X",
     "preparingImage": "Preparing image…",
-    "tweetWon": "I just won {amount} predicting match scores on @guessthescore! ⚽🏆 Climb the leaderboard and win every day. #GuessTheScore",
+    "tweetWon": "I just won {amount} on @guessthescore ({tier} · {when})! ⚽🏆 Predict match scores and climb the daily leaderboard. #GuessTheScore",
     "tweetWonFallback": "I just won real money predicting match scores on @guessthescore! ⚽🏆 Climb the leaderboard and win every day. #GuessTheScore",
     "tweetAmount": "{bnb} BNB (≈ {usd})"
   },

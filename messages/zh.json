@@ -161,7 +161,7 @@
     "snapshotAlt": "你的胜利 — 长按保存",
     "shareOnX": "分享到 X",
     "preparingImage": "正在准备图片…",
-    "tweetWon": "我在 @guessthescore 预测比分赢得了 {amount}！⚽🏆 登上排行榜，每天赢奖。#GuessTheScore",
+    "tweetWon": "我在 @guessthescore 赢得了 {amount}（{tier} · {when}）！⚽🏆 预测比分，冲击每日排行榜。#GuessTheScore",
     "tweetWonFallback": "我在 @guessthescore 预测比分赢得了真实现金！⚽🏆 登上排行榜，每天赢奖。#GuessTheScore",
     "tweetAmount": "{bnb} BNB（≈ {usd}）"
   },

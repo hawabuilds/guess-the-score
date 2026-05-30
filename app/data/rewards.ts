@@ -64,5 +64,7 @@ export function usd(bnb: number) {
 }
 
 export function bnbStr(b: number) {
-  return b.toFixed(3).replace(/0$/, "");
+  if (!Number.isFinite(b) || b <= 0) return "0";
+  const digits = b >= 1 ? 4 : b >= 0.01 ? 5 : 8;
+  return b.toFixed(digits).replace(/\.?0+$/, "");
 }

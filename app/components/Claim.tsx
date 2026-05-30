@@ -382,48 +382,28 @@ export default function Claim({
     }
 
     if (result.txHash && result.chainId) {
-      const explorer = getPayoutExplorerTxUrl(result.chainId, result.txHash);
-      setExplorerLink(explorer);
-      showToast(
-        result.chainId === 97
-          ? t("claimSuccessTestnet")
-          : t("claimSuccess"),
-        6000,
+      setExplorerLink(
+        getPayoutExplorerTxUrl(result.chainId, result.txHash),
       );
     }
 
-
+    const claimedBnb = result.amountBnb ?? reward.bnb;
 
     try {
-
       await reloadRewards();
-
     } catch {
-
       setRewards((prev) =>
-
         prev.map((r) =>
-
-          r.id === reward.id ? { ...r, claimed: true } : r,
-
+          r.id === reward.id ? { ...r, claimed: true, bnb: claimedBnb } : r,
         ),
-
       );
-
     }
 
-
-
     setCelebration({
-
       tier: reward.tier,
-
       day: translateRewardDay(reward.day),
-
       date: reward.date,
-
-      bnb: reward.bnb,
-
+      bnb: claimedBnb,
     });
 
     return true;
@@ -475,28 +455,19 @@ export default function Claim({
 
     let total = 0;
 
-
-
     for (const reward of pending) {
-
       setClaimingId(reward.id);
 
       const result = await claimEpoch(reward.epochId);
 
       if (!result.ok) {
-
         showToast(result.error ?? t("claimFailed"));
-
         break;
-
       }
 
       claimedCount += 1;
-
-      total += reward.bnb;
-
+      total += result.amountBnb ?? reward.bnb;
       lastReward = reward;
-
     }
 
 

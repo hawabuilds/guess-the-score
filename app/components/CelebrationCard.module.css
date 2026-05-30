@@ -18,7 +18,7 @@
   align-items: center;
   justify-content: center;
   padding: 20px;
-  z-index: 600;
+  z-index: 10050;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.25s;

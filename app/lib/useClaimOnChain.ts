@@ -68,6 +68,7 @@ export function useClaimOnChain() {
       error?: string;
       txHash?: Hex;
       chainId?: number;
+      amountBnb?: number;
     }> => {
       if (!isConnected || !address) {
         const message = "Connect your wallet on the Wallet tab first";
@@ -95,6 +96,7 @@ export function useClaimOnChain() {
         setStatus("voucher");
         await ensureWalletLinkedForPayout(address as Address);
         const voucher = await claimPayoutVoucher(epochId, address);
+        const amountBnb = Number(BigInt(voucher.amount)) / 1e18;
 
         const hash = await submitClaimTransaction(
           {
@@ -108,7 +110,12 @@ export function useClaimOnChain() {
 
         setTxHash(hash);
         setStatus("success");
-        return { ok: true, txHash: hash, chainId: payout.chainId };
+        return {
+          ok: true,
+          txHash: hash,
+          chainId: payout.chainId,
+          amountBnb,
+        };
       } catch (err) {
         const message = toClaimError(err);
         setError(message);

@@ -4,7 +4,15 @@ import { toBlob } from "html-to-image";
 import { useTranslations } from "next-intl";
 import { DM_Mono, Figtree } from "next/font/google";
 import { useSession } from "next-auth/react";
-import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent,
+} from "react";
+import { createPortal } from "react-dom";
 import { bnbStr, usd } from "../data/rewards";
 import { sessionUserIdentity } from "../lib/auth-client";
 import { translateTierLabel } from "../lib/i18n-tiers";
@@ -223,7 +231,12 @@ export default function CelebrationCard({
   const [snapshotUrl, setSnapshotUrl] = useState<string | null>(null);
   const [avatarFailed, setAvatarFailed] = useState(false);
   const [preparingCapture, setPreparingCapture] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const lastShareRef = useRef<ShareCardData | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     setAvatarFailed(false);
@@ -294,6 +307,7 @@ export default function CelebrationCard({
     } catch (err) {
       console.warn("[share] snapshot read failed:", err);
       capturedBlobRef.current = blob;
+      setShowLiveCard(true);
     }
   }, []);
 
@@ -408,9 +422,9 @@ export default function CelebrationCard({
     }
   };
 
-  if (!open || !data) return null;
+  if (!open || !data || !mounted) return null;
 
-  return (
+  return createPortal(
     <div
       id="share-bg"
       className={`${styles.shareBg} ${figtree.variable} ${dmMono.variable} ${styles.shareBgOpen}`}
@@ -543,6 +557,7 @@ export default function CelebrationCard({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
