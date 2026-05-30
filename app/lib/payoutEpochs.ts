@@ -4,6 +4,7 @@ import {
   ensureEpochOpenedOnChain,
   type EnsureEpochOpenResult,
 } from "@/lib/payoutOpenEpoch";
+import { syncPayoutEpochPotFromChain } from "@/lib/payoutEpochPot";
 
 export type PayoutEpochRow = {
   epoch_id: number;
@@ -64,6 +65,24 @@ export async function upsertPayoutEpochPot(
   return data as PayoutEpochRow;
 }
 
+/** Updates pot_wei to match on-chain openEpoch (even after finalize). */
+export async function setPayoutEpochPotWei(
+  epochId: bigint,
+  potWei: bigint,
+): Promise<void> {
+  const supabase = getSupabaseAdminClient();
+  const epochNumeric = Number(epochId);
+
+  const { error } = await supabase
+    .from("payout_epochs")
+    .update({ pot_wei: potWei.toString() })
+    .eq("epoch_id", epochNumeric);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
 export async function markPayoutEpochFinalized(
   epochId: bigint,
 ): Promise<void> {
@@ -100,7 +119,7 @@ export type EpochPotSyncMeta = {
 };
 
 /**
- * Ensures today's epoch row with pot_wei = contract balance minus unclaimed prior vouchers.
+ * Ensures today's epoch row with pot_wei = contract balance minus on-chain totalReserved.
  * Refreshes pot_wei on each snapshot run until the epoch is finalized.
  */
 export async function ensurePayoutEpochForSnapshot(
@@ -130,14 +149,14 @@ export async function ensurePayoutEpochForSnapshot(
   }
 
   if (available.availablePotWei <= 0n) {
-    const reserved = available.reservedLiabilityWei.toString();
+    const reservedOnChain = available.totalReservedOnChainWei.toString();
     const balance = available.contractBalanceWei.toString();
     return {
       epoch: null,
       created: false,
       reason:
-        available.reservedLiabilityWei > 0n
-          ? `No new epoch pot — contract holds ${balance} wei but ${reserved} wei is reserved for unclaimed prior winners (fund more or wait for claims)`
+        available.totalReservedOnChainWei > 0n
+          ? `No new epoch pot — contract holds ${balance} wei with ${reservedOnChain} wei already reserved on-chain (fund more or wait for prior-day claims)`
           : "Payout contract has no BNB available for a new epoch — fund the contract before snapshot",
     };
   }
@@ -147,6 +166,12 @@ export async function ensurePayoutEpochForSnapshot(
     epochId,
     available.availablePotWei,
   );
+  if (
+    epochOpenOnChain.status === "opened" ||
+    epochOpenOnChain.status === "already_open"
+  ) {
+    await syncPayoutEpochPotFromChain(epochId).catch(() => undefined);
+  }
   const potSync: EpochPotSyncMeta = {
     contractBalanceWei: available.contractBalanceWei.toString(),
     reservedLiabilityWei: available.reservedLiabilityWei.toString(),

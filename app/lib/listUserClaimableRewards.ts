@@ -1,6 +1,6 @@
 import { getSupabaseAdminClient } from "@/app/lib/supabase";
-import { parsePotWei } from "@/app/lib/payoutEpochs";
 import { formatEpochDayLabels } from "@/lib/epochId";
+import { resolveEffectiveEpochPotWei } from "@/lib/payoutEpochPot";
 import {
   isVoucherClaimedOnChain,
   readPublicPayoutConfig,
@@ -55,7 +55,7 @@ export async function listUserClaimableRewards(
     const snapshot = await resolveSnapshotWinner(epochId, session);
     if (!snapshot) continue;
 
-    const potWei = parsePotWei(epoch.pot_wei);
+    const potWei = await resolveEffectiveEpochPotWei(epochId);
     if (!potWei) continue;
 
     const amountWei = payoutAmountWei(potWei, snapshot.rank);

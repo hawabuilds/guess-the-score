@@ -24,6 +24,11 @@ import {
   readPublicPayoutConfig,
 } from "@/lib/payoutContract";
 import {
+  readNewEpochPotWei,
+  resolveEffectiveEpochPotWei,
+  syncPayoutEpochPotFromChain,
+} from "@/lib/payoutEpochPot";
+import {
   ensureEpochOpenedOnChain,
   readContractSignerAddress,
   readEpochRemainingWei,
@@ -124,14 +129,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const dbPotWei = parsePotWei(epoch.pot_wei);
-    if (!dbPotWei) {
-      return NextResponse.json(
-        { error: "Epoch pot is not configured" },
-        { status: 503 },
-      );
-    }
-
     const contractSigner = await readContractSignerAddress();
     if (contractSigner) {
       const serverSigner = privateKeyToAccount(signerEnv.privateKey).address;
@@ -148,7 +145,19 @@ export async function POST(request: NextRequest) {
 
     let onChain = await readOnChainEpoch(epochId);
     if (!onChain?.open) {
-      const opened = await ensureEpochOpenedOnChain(epochId, dbPotWei);
+      const newEpochPot = await readNewEpochPotWei();
+      if (!newEpochPot || newEpochPot.pot <= 0n) {
+        const reserved = newEpochPot?.totalReserved.toString() ?? "?";
+        const balance = newEpochPot?.balance.toString() ?? "?";
+        return NextResponse.json(
+          {
+            error: `No unreserved tBNB for a new epoch (balance ${balance} wei, reserved on-chain ${reserved} wei). Fund the contract or wait for prior claims.`,
+          },
+          { status: 503 },
+        );
+      }
+
+      const opened = await ensureEpochOpenedOnChain(epochId, newEpochPot.pot);
       if (opened.status === "error") {
         return NextResponse.json({ error: opened.reason }, { status: 503 });
       }
@@ -161,6 +170,8 @@ export async function POST(request: NextRequest) {
         );
       }
       onChain = await readOnChainEpoch(epochId);
+    } else {
+      await syncPayoutEpochPotFromChain(epochId).catch(() => undefined);
     }
 
     if (!onChain?.open) {
@@ -173,7 +184,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const potWei = onChain.pot;
+    const potWei =
+      (await resolveEffectiveEpochPotWei(epochId)) ?? onChain.pot;
+    if (!potWei || potWei <= 0n) {
+      return NextResponse.json(
+        { error: "Epoch pot is not configured" },
+        { status: 503 },
+      );
+    }
 
     const snapshot = await resolveSnapshotWinner(epochId, session);
     if (!snapshot || !isTopTwentyRank(snapshot.rank)) {

@@ -20,7 +20,7 @@ export type OnChainEpoch = {
 };
 
 export type EnsureEpochOpenResult =
-  | { status: "opened"; txHash: Hex }
+  | { status: "opened"; txHash: Hex; pot: bigint }
   | { status: "already_open"; pot: bigint }
   | { status: "skipped"; reason: string }
   | { status: "error"; reason: string };
@@ -175,7 +175,7 @@ export async function ensureEpochOpenedOnChain(
     const publicClient = createPayoutPublicClient(config);
     await publicClient.waitForTransactionReceipt({ hash });
 
-    return { status: "opened", txHash: hash };
+    return { status: "opened", txHash: hash, pot: potToOpen };
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "openEpoch transaction failed";

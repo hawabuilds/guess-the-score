@@ -114,8 +114,8 @@ export type AvailableEpochPot = {
 };
 
 /**
- * Funds available for a new epoch: contract BNB minus unclaimed prior-day vouchers.
- * Winners can still claim old epochs whenever; those amounts stay reserved.
+ * Funds available for a new epoch: contract balance minus on-chain totalReserved.
+ * Matches openEpoch's rule so each day's pot is exactly the unreserved tBNB in the contract.
  */
 export async function getAvailableEpochPotWei(
   forEpochId: bigint,
@@ -127,18 +127,10 @@ export async function getAvailableEpochPotWei(
   const totalReservedOnChainWei =
     (await readTotalReservedOnChain()) ?? 0n;
 
-  const freeByDbLiability =
-    onChain.balance > reservedLiabilityWei
-      ? onChain.balance - reservedLiabilityWei
-      : 0n;
-  const freeOnChain =
+  const availablePotWei =
     onChain.balance > totalReservedOnChainWei
       ? onChain.balance - totalReservedOnChainWei
       : 0n;
-
-  // openEpoch requires balance >= totalReserved + pot — use the tighter cap.
-  const availablePotWei =
-    freeOnChain < freeByDbLiability ? freeOnChain : freeByDbLiability;
 
   return {
     contractBalanceWei: onChain.balance,

@@ -50,7 +50,7 @@ async function main() {
   const available = await getAvailableEpochPotWei(epochId);
   if (available) {
     console.log("dbLiabilityWei", available.reservedLiabilityWei.toString());
-    console.log("availablePotWei (min cap)", available.availablePotWei.toString());
+    console.log("availablePotWei (balance - totalReserved)", available.availablePotWei.toString());
   }
 
   try {
