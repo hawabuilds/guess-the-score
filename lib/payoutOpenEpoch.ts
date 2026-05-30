@@ -168,7 +168,7 @@ export async function ensureEpochOpenedOnChain(
       address: config.contractAddress,
       abi: scorePayoutAbi,
       functionName: "openEpoch",
-      args: [epochId, potWei],
+      args: [epochId, potToOpen],
       chain,
     });
 
