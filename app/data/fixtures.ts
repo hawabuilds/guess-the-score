@@ -39,6 +39,14 @@ export const TEAM_COUNTRY_CODES: Record<string, CountryCode> = {
   Wales: "GB_WLS",
   "Northern Ireland": "GB_NIR",
   "Curaçao": "CW",
+  Poland: "PL",
+  Ukraine: "UA",
+  Germany: "DE",
+  Finland: "FI",
+  USA: "US",
+  Senegal: "SN",
+  Brazil: "BR",
+  Panama: "PA",
 };
 
 export function getTeamCountryCode(team: string): CountryCode | null {
@@ -131,6 +139,45 @@ export const FIXTURES: Fixture[] = [
     time: "16:00",
     group: "UEFA Champions League Final",
     externalFixtureId: 1544371,
+    /** Regulation score 1–1 (API-Football); used if auto-score cron missed PEN/FT window */
+    result: { homeScore: 1, awayScore: 1 },
+  },
+  /** Sun 31 May 2026 UTC — International Friendlies */
+  {
+    id: 13,
+    home: "Poland",
+    away: "Ukraine",
+    date: "2026-05-31",
+    time: "15:30",
+    group: "International Friendly",
+    externalFixtureId: 1544805,
+  },
+  {
+    id: 14,
+    home: "Germany",
+    away: "Finland",
+    date: "2026-05-31",
+    time: "18:45",
+    group: "International Friendly",
+    externalFixtureId: 1501818,
+  },
+  {
+    id: 15,
+    home: "USA",
+    away: "Senegal",
+    date: "2026-05-31",
+    time: "19:30",
+    group: "International Friendly",
+    externalFixtureId: 1503008,
+  },
+  {
+    id: 16,
+    home: "Brazil",
+    away: "Panama",
+    date: "2026-05-31",
+    time: "21:30",
+    group: "International Friendly",
+    externalFixtureId: 1536926,
   },
 ];
 

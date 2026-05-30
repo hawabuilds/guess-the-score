@@ -42,6 +42,8 @@ const TEAM_ALIASES: Record<string, readonly string[]> = {
     "Paris St. Germain",
   ],
   Arsenal: ["Gunners"],
+  USA: ["United States", "U.S.", "US", "USMNT"],
+  Senegal: ["Lions of Teranga"],
 };
 
 const SCORE_PATTERN = /(\d{1,2})\s*(?:[-:–—]|(?:\s+))\s*(\d{1,2})/;

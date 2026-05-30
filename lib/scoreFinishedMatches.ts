@@ -198,17 +198,13 @@ export async function getFixturesPendingAutoScore(
 
 
     const state = await getMatchState(fixture.id);
+    const manualResult = fixtureFinalScore(fixture);
 
-    if (!state?.predictions_collected_at) continue;
+    if (!state?.predictions_collected_at && !manualResult) continue;
 
-
-
-    if (fixtureFinalScore(fixture)) {
-
+    if (manualResult) {
       pending.push(fixture);
-
       continue;
-
     }
 
 
