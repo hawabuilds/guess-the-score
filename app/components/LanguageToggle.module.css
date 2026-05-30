@@ -1,0 +1,54 @@
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.barHeader {
+  justify-content: flex-end;
+}
+
+.barMenu {
+  width: 100%;
+  justify-content: flex-start;
+}
+
+.btn {
+  padding: 4px 9px;
+  border-radius: 100px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(10, 10, 10, 0.72);
+  backdrop-filter: blur(12px);
+  color: rgba(255, 255, 255, 0.42);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    border-color 0.15s,
+    background 0.15s;
+}
+
+.barMenu .btn {
+  flex: 1;
+  text-align: center;
+}
+
+.btn:hover {
+  color: rgba(255, 255, 255, 0.75);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.btnActive {
+  color: rgba(255, 255, 255, 0.92);
+  border-color: rgba(46, 158, 62, 0.45);
+  background: rgba(46, 158, 62, 0.12);
+}
+
+.sep {
+  color: rgba(255, 255, 255, 0.16);
+  font-size: 10px;
+  user-select: none;
+}

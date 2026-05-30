@@ -1,5 +1,9 @@
-import { FIXTURES, getNextFixture } from "@/app/data/fixtures";
-import { enrichFixture, enrichFixtures, formatMatchStatus } from "@/lib/enrichFixtures";
+import { FIXTURES, getActiveFixtures } from "@/app/data/fixtures";
+import {
+  enrichNextFixture,
+  enrichUpcomingFixtures,
+  formatMatchStatus,
+} from "@/lib/enrichFixtures";
 import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -9,17 +13,26 @@ export async function GET(request: NextRequest) {
 
   try {
     if (nextOnly) {
-      const fixture = getNextFixture();
-      const enriched = await enrichFixture(fixture);
+      const fixture = await enrichNextFixture(getActiveFixtures(FIXTURES));
+      if (!fixture) {
+        return NextResponse.json({ fixture: null, statusLabel: null });
+      }
+
       return NextResponse.json({
-        fixture: enriched,
-        statusLabel: formatMatchStatus(enriched.live),
+        fixture,
+        statusLabel: formatMatchStatus(fixture.live),
       });
     }
 
-    const enriched = await enrichFixtures(FIXTURES);
+    const limitParam = request.nextUrl.searchParams.get("limit");
+    const parsedLimit = limitParam ? Number.parseInt(limitParam, 10) : NaN;
+    const limit =
+      Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : undefined;
+
+    const enriched = await enrichUpcomingFixtures(getActiveFixtures(FIXTURES));
+    const fixtures = limit ? enriched.slice(0, limit) : enriched;
     return NextResponse.json({
-      fixtures: enriched.map((fixture) => ({
+      fixtures: fixtures.map((fixture) => ({
         ...fixture,
         statusLabel: formatMatchStatus(fixture.live),
       })),

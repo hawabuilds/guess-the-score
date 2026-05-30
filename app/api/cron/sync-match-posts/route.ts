@@ -1,17 +1,44 @@
-import { FIXTURES, fixtureDateTime } from "@/app/data/fixtures";
+import {
+  FIXTURES,
+  fixtureCacheKey,
+  fixtureDateTime,
+  getActiveFixtures,
+} from "@/app/data/fixtures";
+import { getMatchState, getStoredMatchTweetId } from "@/app/lib/supabase";
 import { isCronAuthorized } from "@/lib/cronAuth";
 import { resolveMatchPost } from "@/lib/resolveMatchTweet";
+import {
+  registryGap,
+  syncFixtureRegistryToSupabase,
+} from "@/lib/syncFixtureRegistry";
 import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
+
+async function hasCachedMatchPost(
+  fixture: (typeof FIXTURES)[number],
+): Promise<boolean> {
+  if (fixture.tweetId?.trim()) return true;
+
+  const storedId = await getStoredMatchTweetId(fixture.id);
+  if (!storedId) return false;
+
+  const state = await getMatchState(fixture.id);
+  const expectedKey = fixtureCacheKey(fixture);
+  if (!state?.match_fixture_key) return true;
+  return state.match_fixture_key === expectedKey;
+}
 
 export async function GET(request: NextRequest) {
   if (!isCronAuthorized(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const registry = await syncFixtureRegistryToSupabase();
+  const registryMissing = registryGap(registry);
+
   const now = new Date();
-  const upcoming = FIXTURES.filter((fixture) => {
+  const upcoming = getActiveFixtures(FIXTURES).filter((fixture) => {
     const kickoff = fixtureDateTime(fixture);
     const hoursUntil = (kickoff.getTime() - now.getTime()) / (60 * 60 * 1000);
     return hoursUntil >= -2 && hoursUntil <= 168;
@@ -21,7 +48,22 @@ export async function GET(request: NextRequest) {
 
   for (const fixture of upcoming) {
     try {
-      const post = await resolveMatchPost(fixture);
+      if (await hasCachedMatchPost(fixture)) {
+        results.push({
+          matchId: fixture.id,
+          fixture: `${fixture.home} vs ${fixture.away}`,
+          found: true,
+          tweetId: fixture.tweetId ?? (await getStoredMatchTweetId(fixture.id)),
+          source: "cached",
+          skippedApi: true,
+        });
+        continue;
+      }
+
+      const post = await resolveMatchPost(fixture, {
+        trustCachedTweet: false,
+        discoverMaxPages: 2,
+      });
       results.push({
         matchId: fixture.id,
         fixture: `${fixture.home} vs ${fixture.away}`,
@@ -40,6 +82,13 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     syncedAt: new Date().toISOString(),
+    registry: {
+      expected: registry.expectedMatchIds,
+      registered: registry.registeredMatchIds,
+      missing: registryMissing,
+      skipped: registry.skipped,
+      errors: registry.errors,
+    },
     results,
   });
 }

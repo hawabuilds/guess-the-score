@@ -22,6 +22,16 @@
   min-height: 100vh;
   position: relative;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.landNav {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-shrink: 0;
+  padding: calc(12px + env(safe-area-inset-top)) 20px 0;
 }
 
 .body {
@@ -37,7 +47,7 @@
 }
 
 .landHero {
-  padding: 44px 24px 32px;
+  padding: 24px 24px 32px;
 }
 
 .landLogoImg {

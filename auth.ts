@@ -1,4 +1,8 @@
 import NextAuth from "next-auth";
+import {
+  isTwitterNumericUserId,
+  pickTwitterUserIdFromToken,
+} from "./lib/twitterUserId";
 import Twitter from "next-auth/providers/twitter";
 
 const USER_FIELDS = "user.fields=id,name,username,profile_image_url";
@@ -94,17 +98,72 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
 
         const username = user.username?.replace(/^@/, "").trim();
-        const name =
-          user.name?.trim() ||
-          (username ? `@${username}` : `user_${user.id}`);
+        const name = username
+          ? `@${username}`
+          : user.name?.trim() || `user_${user.id}`;
 
         return {
           id: user.id,
           name,
           email: user.email ?? null,
           image: user.profile_image_url ?? null,
+          username: username ?? null,
         };
       },
     }),
   ],
+  callbacks: {
+    jwt({ token, user, profile }) {
+      if (user && "username" in user && typeof user.username === "string") {
+        token.username = user.username.replace(/^@/, "").trim() || null;
+      } else if (profile && typeof profile === "object" && "username" in profile) {
+        const fromProfile = (profile as { username?: string | null }).username;
+        token.username =
+          typeof fromProfile === "string"
+            ? fromProfile.replace(/^@/, "").trim() || null
+            : null;
+      } else if (
+        user &&
+        typeof user.name === "string" &&
+        user.name.trim().startsWith("@")
+      ) {
+        token.username = user.name.trim().replace(/^@/, "") || null;
+      }
+
+      const candidates = [
+        user?.id != null ? String(user.id) : null,
+        profile && typeof profile === "object" && "id" in profile
+          ? String((profile as { id?: string | number }).id ?? "")
+          : null,
+        typeof token.twitterId === "string" ? token.twitterId : null,
+        typeof token.sub === "string" ? token.sub : null,
+      ];
+
+      for (const candidate of candidates) {
+        if (isTwitterNumericUserId(candidate)) {
+          token.twitterId = candidate!.trim();
+          break;
+        }
+      }
+
+      return token;
+    },
+    session({ session, token }) {
+      if (session.user) {
+        const twitterId = pickTwitterUserIdFromToken({
+          twitterId:
+            typeof token.twitterId === "string" ? token.twitterId : null,
+          sub: typeof token.sub === "string" ? token.sub : null,
+        });
+
+        if (twitterId) {
+          session.user.id = twitterId;
+        }
+
+        session.user.username =
+          typeof token.username === "string" ? token.username : null;
+      }
+      return session;
+    },
+  },
 });

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { DM_Mono, Figtree } from "next/font/google";
 import {
   openXAccountSwitch,
@@ -31,6 +32,9 @@ export default function SwitchXAccountModal({
   onClose,
   signedIn = false,
 }: SwitchXAccountModalProps) {
+  const t = useTranslations("switchXAccount");
+  const tc = useTranslations("common");
+
   if (!open) return null;
 
   const handleContinue = () => {
@@ -57,28 +61,25 @@ export default function SwitchXAccountModal({
       >
         <div className={styles.modalHandle} />
         <h2 id="switch-x-title" className={styles.modalTitle}>
-          Switch X account
+          {t("title")}
         </h2>
-        <p className={styles.modalBody}>
-          X keeps you logged in across tabs. To use a different account, open X
-          and switch accounts there first, then come back.
-        </p>
+        <p className={styles.modalBody}>{t("body")}</p>
         <button
           type="button"
           className={`${styles.btn} ${styles.btnGhost}`}
           onClick={openXAccountSwitch}
         >
-          Open X to switch accounts
+          {t("openX")}
         </button>
         <button
           type="button"
           className={`${styles.btn} ${styles.btnPrimary}`}
           onClick={handleContinue}
         >
-          Continue — Sign in with X
+          {t("continueSignIn")}
         </button>
         <button type="button" className={styles.btnCancel} onClick={onClose}>
-          Cancel
+          {tc("cancel")}
         </button>
       </div>
     </div>

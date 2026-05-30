@@ -1,11 +1,35 @@
 'use client';
 
 import { getDefaultConfig } from '@rainbow-me/rainbowkit';
-import { bsc } from 'wagmi/chains';
+import {
+  injectedWallet,
+  metaMaskWallet,
+  walletConnectWallet,
+} from '@rainbow-me/rainbowkit/wallets';
+import { PAYOUT_CHAIN, PAYOUT_CHAIN_ID } from './lib/payoutConfig';
+import { http } from 'wagmi';
+
+const payoutTransport =
+  PAYOUT_CHAIN_ID === 97
+    ? http('https://data-seed-prebsc-1-s1.binance.org:8545')
+    : http('https://bsc-dataseed.binance.org');
 
 export const config = getDefaultConfig({
   appName: 'Guess the Score',
   projectId: '42cedd42ee3f029a1efbff1b26216ca0',
-  chains: [bsc],
+  chains: [PAYOUT_CHAIN],
+  transports: {
+    [PAYOUT_CHAIN.id]: payoutTransport,
+  },
+  wallets: [
+    {
+      groupName: 'Recommended',
+      wallets: [injectedWallet, metaMaskWallet],
+    },
+    {
+      groupName: 'Mobile (scan QR)',
+      wallets: [walletConnectWallet],
+    },
+  ],
   ssr: true,
 });

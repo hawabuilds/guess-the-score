@@ -1,18 +1,21 @@
 "use client";
 
 import { useConnectModal } from "@rainbow-me/rainbowkit";
+import { useTranslations } from "next-intl";
 import { DM_Mono, Figtree } from "next/font/google";
 import { useSession } from "next-auth/react";
-import { bsc } from "wagmi/chains";
 import {
   useAccount,
   useBalance,
   useChainId,
   useDisconnect,
 } from "wagmi";
+import { useLinkPayoutWallet } from "../lib/useLinkPayoutWallet";
 import { signOutOfX } from "../lib/auth-client";
+import { PAYOUT_CHAIN, PAYOUT_CHAIN_ID } from "../lib/payoutConfig";
 import { LAND_LOGO_SRC } from "./landing-assets/logo";
 import AppTabBar from "./AppTabBar";
+import NavUserControl from "./NavUserControl";
 import styles from "./Wallet.module.css";
 
 const figtree = Figtree({
@@ -52,20 +55,23 @@ export default function Wallet({
   onGoToLeaderboard,
   onGoToClaim,
 }: WalletProps) {
+  const t = useTranslations("wallet");
+  const tc = useTranslations("common");
   const { status } = useSession();
   const { address, isConnected, isConnecting } = useAccount();
+  const { linkStatus, linkError, retryLink } = useLinkPayoutWallet();
   const chainId = useChainId();
   const { openConnectModal } = useConnectModal();
   const { disconnect } = useDisconnect();
   const { data: balance } = useBalance({
     address,
-    chainId: bsc.id,
+    chainId: PAYOUT_CHAIN_ID,
   });
 
   const networkLabel =
-    chainId === bsc.id
-      ? "BNB Smart Chain"
-      : "Wrong network — switch to BSC";
+    chainId === PAYOUT_CHAIN.id
+      ? t(PAYOUT_CHAIN_ID === 97 ? "networkBscTestnet" : "networkBsc")
+      : t("networkWrong");
 
   const bnbDisplay = formatBnbBalance(balance?.value);
 
@@ -90,10 +96,10 @@ export default function Wallet({
             >
               <polyline points="15 18 9 12 15 6" />
             </svg>
-            Back
+            {tc("back")}
           </button>
-          <div className={styles.navTitle}>Wallet</div>
-          <div className={styles.navSpacer} aria-hidden />
+          <div className={styles.navTitle}>{t("navTitle")}</div>
+          <NavUserControl />
         </nav>
 
         <div className={styles.body}>
@@ -103,53 +109,79 @@ export default function Wallet({
               <img
                 className={styles.walletLogoImg}
                 src={LAND_LOGO_SRC}
-                alt="$SCORE"
+                alt={tc("scoreLogoAlt")}
               />
             </div>
             <h1 className={styles.walletTitle}>
-              {isConnected ? "Wallet connected" : "Connect your wallet"}
+              {isConnected ? t("connectedTitle") : t("connectTitle")}
             </h1>
             <p className={styles.walletSub}>
-              {isConnected
-                ? "Your prize winnings (paid in BNB) will be sent to this wallet."
-                : "This is where your winnings get sent. Prizes are paid in crypto (BNB). No wallet needed just to play."}
+              {isConnected ? t("connectedSub") : t("connectSub")}
             </p>
+            {!isConnected ? (
+              <p className={styles.walletSub} style={{ marginTop: 8, fontSize: 12 }}>
+                {t("connectMetaMaskHint")}
+              </p>
+            ) : null}
           </div>
 
           {isConnected && address ? (
             <div className={styles.walletConnected}>
               <div className={styles.wcCard}>
                 <div className={styles.wcRow}>
-                  <span className={styles.wcK}>Status</span>
+                  <span className={styles.wcK}>{t("status")}</span>
                   <span className={styles.wcStatus}>
                     <span className={styles.statusDot} aria-hidden />
-                    Connected
+                    {t("connected")}
                   </span>
                 </div>
                 <div className={styles.wcRow}>
-                  <span className={styles.wcK}>Network</span>
+                  <span className={styles.wcK}>{t("network")}</span>
                   <span className={styles.wcV}>{networkLabel}</span>
                 </div>
                 <div className={styles.wcRow}>
-                  <span className={styles.wcK}>Address</span>
+                  <span className={styles.wcK}>{t("address")}</span>
                   <span className={`${styles.wcV} ${styles.wcAddr}`}>
                     {shortenAddress(address)}
                   </span>
                 </div>
                 <div className={styles.wcBalWrap}>
-                  <div className={styles.wcBalLabel}>Wallet balance</div>
+                  <div className={styles.wcBalLabel}>{t("walletBalance")}</div>
                   <div className={styles.wcBal}>
-                    {bnbDisplay ?? "—"}{" "}
-                    <span className={styles.wcUnit}>BNB</span>
+                    {bnbDisplay ?? tc("emDash")}{" "}
+                    <span className={styles.wcUnit}>{tc("bnb")}</span>
                   </div>
                 </div>
               </div>
+              {linkStatus === "linked" ? (
+                <p className={styles.linkConfirm} role="status">
+                  {t("payoutWalletLinked")}
+                </p>
+              ) : null}
+              {linkStatus === "error" ? (
+                <div className={styles.linkErrorWrap} role="alert">
+                  <p className={styles.linkError}>
+                    {linkError ?? t("payoutWalletLinkFailed")}
+                  </p>
+                  {status === "authenticated" ? (
+                    <button
+                      type="button"
+                      className={styles.linkRetry}
+                      onClick={() => retryLink()}
+                    >
+                      {t("payoutWalletRetry")}
+                    </button>
+                  ) : (
+                    <p className={styles.linkErrorHint}>{t("signInXToLink")}</p>
+                  )}
+                </div>
+              ) : null}
               <button
                 type="button"
                 className={styles.btnGhost}
                 onClick={() => disconnect()}
               >
-                Disconnect
+                {t("disconnect")}
               </button>
             </div>
           ) : (
@@ -160,7 +192,7 @@ export default function Wallet({
                 onClick={() => openConnectModal?.()}
                 disabled={isConnecting}
               >
-                {isConnecting ? "Connecting…" : "Connect Wallet"}
+                {isConnecting ? tc("connecting") : t("connectWallet")}
               </button>
             </div>
           )}
@@ -171,7 +203,7 @@ export default function Wallet({
               className={styles.btnGhost}
               onClick={() => signOutOfX()}
             >
-              Sign out of X
+              {t("signOutOfX")}
             </button>
           ) : null}
 
@@ -180,7 +212,7 @@ export default function Wallet({
             className={styles.walletSkip}
             onClick={onGoToDashboard}
           >
-            Skip for now
+            {t("skipForNow")}
           </button>
         </div>
 

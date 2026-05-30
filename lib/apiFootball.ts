@@ -6,16 +6,33 @@ export type LiveMatchData = {
   elapsed: number | null;
 };
 
-const API_BASE = "https://api.football-data.org/v4";
+/** Normalized fixture row used by scoring + live UI. */
+export type FootballDataMatch = {
+  id: number;
+  status: string;
+  minute?: number | null;
+  homeTeam: { name: string };
+  awayTeam: { name: string };
+  score?: {
+    fullTime?: { home: number | null; away: number | null };
+    halfTime?: { home: number | null; away: number | null };
+  };
+};
 
-/** football-data.org token from https://www.football-data.org/client/register */
+import {
+  ApiFootballBudgetError,
+  canUseApiFootball,
+  getCachedFixture,
+  markQuotaExhausted,
+  setCachedFixture,
+  updateQuotaFromHeaders,
+} from "./apiFootballCache";
+
+const API_BASE = "https://v3.football.api-sports.io";
+
+/** API key from https://www.api-football.com/ */
 function getApiKey(): string | null {
-  return (
-    process.env.FOOTBALL_DATA_API_KEY?.trim() ||
-    process.env.FOOTBALL_DATA_TOKEN?.trim() ||
-    process.env.API_FOOTBALL_KEY?.trim() ||
-    null
-  );
+  return process.env.API_FOOTBALL_KEY?.trim() || null;
 }
 
 export function isApiFootballConfigured(): boolean {
@@ -24,6 +41,71 @@ export function isApiFootballConfigured(): boolean {
 
 export function isFootballDataConfigured(): boolean {
   return isApiFootballConfigured();
+}
+
+type ApiSportsFixtureRow = {
+  fixture: {
+    id: number;
+    status: { short: string; elapsed: number | null };
+  };
+  teams: { home: { name: string }; away: { name: string } };
+  goals: { home: number | null; away: number | null };
+  score: {
+    fulltime: { home: number | null; away: number | null };
+    halftime: { home: number | null; away: number | null };
+  };
+};
+
+type ApiSportsFixturesResponse = {
+  response?: ApiSportsFixtureRow[];
+  errors?: Record<string, string>;
+};
+
+async function apiFetch(path: string): Promise<Response> {
+  const key = getApiKey();
+  if (!key) {
+    throw new Error("API_FOOTBALL_KEY is not configured");
+  }
+
+  if (!canUseApiFootball()) {
+    throw new ApiFootballBudgetError(
+      "API-Football daily quota reserve reached — set fixture.result or wait for reset",
+    );
+  }
+
+  const response = await fetch(`${API_BASE}${path}`, {
+    headers: {
+      "x-apisports-key": key,
+    },
+    cache: "no-store",
+  });
+
+  updateQuotaFromHeaders(response.headers);
+
+  return response;
+}
+
+async function parseFixturesResponse(
+  response: Response,
+): Promise<ApiSportsFixtureRow[]> {
+  if (response.status === 404) return [];
+
+  const body = (await response.json()) as ApiSportsFixturesResponse;
+
+  if (body.errors && Object.keys(body.errors).length > 0) {
+    const message = Object.values(body.errors).join("; ");
+    if (/limit|quota|requests/i.test(message)) {
+      markQuotaExhausted();
+      throw new ApiFootballBudgetError(message);
+    }
+    throw new Error(`api-football.com error: ${message}`);
+  }
+
+  if (!response.ok) {
+    throw new Error(`api-football.com error: ${response.status}`);
+  }
+
+  return body.response ?? [];
 }
 
 function normalizeTeamName(name: string): string {
@@ -43,10 +125,30 @@ function teamNamesMatch(apiName: string, fixtureName: string): boolean {
 
   const aliases: Record<string, string[]> = {
     usa: ["united states", "u s a", "us"],
-    "bosnia herzegovina": ["bosnia", "bih"],
+    "bosnia herzegovina": ["bosnia", "bih", "bosnia & herzegovina"],
     "cape verde": ["cabo verde"],
     "saint etienne": ["st etienne", "st. etienne", "asse", "saint-etienne"],
     nice: ["ogc nice"],
+    flamengo: ["cr flamengo", "clube de regatas do flamengo"],
+    cusco: ["cusco fc", "cienciano"],
+    "crystal palace": ["palace"],
+    "rayo vallecano": ["rayo"],
+    "buriram united": ["buriram"],
+    selangor: ["selangor fa"],
+    "fyr macedonia": ["north macedonia", "macedonia", "mk"],
+    scotland: ["scotland"],
+    curacao: ["curaçao", "curacao"],
+    arsenal: ["arsenal", "afc arsenal"],
+    "paris saint germain": ["psg", "paris sg", "paris saint-germain"],
+    "south africa": ["rsa", "bafana bafana"],
+    "republic of ireland": ["rep of ireland", "ireland"],
+    iran: ["ir iran", "team melli"],
+    gambia: ["gambia national"],
+    nicaragua: ["nicaragua national"],
+    iraq: ["iraq national"],
+    andorra: ["andorra national"],
+    lebanon: ["lebanon national"],
+    sudan: ["sudan national"],
   };
 
   for (const [key, values] of Object.entries(aliases)) {
@@ -59,36 +161,31 @@ function teamNamesMatch(apiName: string, fixtureName: string): boolean {
   return false;
 }
 
-type FootballDataScore = {
-  fullTime?: { home: number | null; away: number | null };
-  halfTime?: { home: number | null; away: number | null };
-};
+function normalizeFixtureRow(row: ApiSportsFixtureRow): FootballDataMatch {
+  const fulltime = row.score.fulltime;
+  const halftime = row.score.halftime;
+  const hasFulltime =
+    fulltime.home != null && fulltime.away != null;
+  const hasLiveGoals = row.goals.home != null && row.goals.away != null;
 
-type FootballDataMatch = {
-  id: number;
-  status: string;
-  minute?: number | null;
-  homeTeam: { name: string };
-  awayTeam: { name: string };
-  score?: FootballDataScore;
-};
-
-type FootballDataMatchesResponse = {
-  matches?: FootballDataMatch[];
-};
-
-async function apiFetch(path: string): Promise<Response> {
-  const key = getApiKey();
-  if (!key) {
-    throw new Error("FOOTBALL_DATA_API_KEY is not configured");
-  }
-
-  return fetch(`${API_BASE}${path}`, {
-    headers: {
-      "X-Auth-Token": key,
+  return {
+    id: row.fixture.id,
+    status: row.fixture.status.short,
+    minute: row.fixture.status.elapsed,
+    homeTeam: { name: row.teams.home.name },
+    awayTeam: { name: row.teams.away.name },
+    score: {
+      fullTime: hasFulltime
+        ? { home: fulltime.home, away: fulltime.away }
+        : hasLiveGoals
+          ? { home: row.goals.home, away: row.goals.away }
+          : undefined,
+      halfTime:
+        halftime.home != null && halftime.away != null
+          ? { home: halftime.home, away: halftime.away }
+          : undefined,
     },
-    next: { revalidate: 0 },
-  });
+  };
 }
 
 function extractScores(match: FootballDataMatch): {
@@ -100,32 +197,35 @@ function extractScores(match: FootballDataMatch): {
     return { homeScore: fullTime.home, awayScore: fullTime.away };
   }
 
-  const halfTime = match.score?.halfTime;
-  if (halfTime?.home != null && halfTime?.away != null) {
-    return { homeScore: halfTime.home, awayScore: halfTime.away };
-  }
-
   return { homeScore: null, awayScore: null };
 }
 
-/** Map football-data.org statuses to the short labels used in the UI. */
+/** Map api-football.com status.short to UI labels. */
 function mapStatus(status: string): string {
   switch (status) {
-    case "FINISHED":
+    case "FT":
+    case "AET":
+    case "PEN":
       return "FT";
-    case "PAUSED":
+    case "HT":
+    case "BT":
       return "HT";
-    case "IN_PLAY":
+    case "1H":
+    case "2H":
+    case "ET":
+    case "P":
+    case "LIVE":
       return "LIVE";
-    case "SCHEDULED":
-    case "TIMED":
+    case "NS":
+    case "TBD":
+    case "PST":
       return "NS";
     default:
       return status;
   }
 }
 
-function mapMatchRow(match: FootballDataMatch): LiveMatchData {
+export function mapMatchRow(match: FootballDataMatch): LiveMatchData {
   const { homeScore, awayScore } = extractScores(match);
 
   return {
@@ -137,18 +237,55 @@ function mapMatchRow(match: FootballDataMatch): LiveMatchData {
   };
 }
 
+export async function fetchApiMatch(
+  externalFixtureId: number,
+): Promise<FootballDataMatch | null> {
+  const cached = getCachedFixture(externalFixtureId);
+  if (cached !== undefined) return cached;
+
+  try {
+    const rows = await parseFixturesResponse(
+      await apiFetch(`/fixtures?id=${externalFixtureId}`),
+    );
+    const row = rows[0];
+    const match = row ? normalizeFixtureRow(row) : null;
+    setCachedFixture(externalFixtureId, match);
+    return match;
+  } catch (error) {
+    if (error instanceof ApiFootballBudgetError) {
+      const stale = getCachedFixture(externalFixtureId, 0);
+      if (stale !== undefined) return stale;
+    }
+    throw error;
+  }
+}
+
 export async function fetchLiveMatch(
   externalFixtureId: number,
 ): Promise<LiveMatchData | null> {
-  const response = await apiFetch(`/matches/${externalFixtureId}`);
-
-  if (response.status === 404) return null;
-  if (!response.ok) {
-    throw new Error(`football-data.org error: ${response.status}`);
-  }
-
-  const match = (await response.json()) as FootballDataMatch;
+  const match = await fetchApiMatch(externalFixtureId);
+  if (!match) return null;
   return mapMatchRow(match);
+}
+
+export { ApiFootballBudgetError, getApiFootballQuota } from "./apiFootballCache";
+
+/** Resolve final score when api-football.com reports the match finished (FT). */
+export function resolveFinalScoreFromApiMatch(
+  match: FootballDataMatch,
+  kickoffMs: number,
+  nowMs: number,
+  minMinutesAfterKickoff: number,
+): { homeScore: number; awayScore: number } | null {
+  if (!isFinishedStatus(mapStatus(match.status))) return null;
+
+  const minutesSinceKickoff = (nowMs - kickoffMs) / 60_000;
+  if (minutesSinceKickoff < minMinutesAfterKickoff) return null;
+
+  const { homeScore, awayScore } = extractScores(match);
+  if (homeScore === null || awayScore === null) return null;
+
+  return { homeScore, awayScore };
 }
 
 export async function findExternalFixtureId(
@@ -156,23 +293,20 @@ export async function findExternalFixtureId(
   away: string,
   date: string,
 ): Promise<number | null> {
-  const response = await apiFetch(
-    `/matches?dateFrom=${date}&dateTo=${date}`,
-  );
-
-  if (!response.ok) {
-    throw new Error(`football-data.org error: ${response.status}`);
+  if (!canUseApiFootball(5)) {
+    return null;
   }
 
-  const body = (await response.json()) as FootballDataMatchesResponse;
-  const rows = body.matches ?? [];
+  const rows = await parseFixturesResponse(
+    await apiFetch(`/fixtures?date=${date}`),
+  );
 
   for (const row of rows) {
     if (
-      teamNamesMatch(row.homeTeam.name, home) &&
-      teamNamesMatch(row.awayTeam.name, away)
+      teamNamesMatch(row.teams.home.name, home) &&
+      teamNamesMatch(row.teams.away.name, away)
     ) {
-      return row.id;
+      return row.fixture.id;
     }
   }
 
@@ -181,6 +315,19 @@ export async function findExternalFixtureId(
 
 export function isFinishedStatus(status: string): boolean {
   return status === "FT" || status === "FINISHED";
+}
+
+/** True when api-football.com reports the match has kicked off or ended. */
+export function isStartedOrFinishedStatus(status: string): boolean {
+  return (
+    isFinishedStatus(status) ||
+    status === "LIVE" ||
+    status === "HT" ||
+    status === "1H" ||
+    status === "2H" ||
+    status === "ET" ||
+    status === "P"
+  );
 }
 
 export function hasFinalScore(data: LiveMatchData): boolean {

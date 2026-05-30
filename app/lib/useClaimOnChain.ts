@@ -1,0 +1,155 @@
+"use client";
+
+import { claimPayoutVoucher } from "@/app/lib/claim-voucher-client";
+import { linkPayoutWallet } from "@/app/lib/link-wallet-client";
+import { fetchLinkedPayoutWallet } from "@/app/lib/payout-wallet-client";
+import {
+  ensurePayoutChainSelected,
+  submitClaimTransaction,
+  toClaimError,
+  type SubmitClaimPhase,
+} from "@/app/lib/submitClaimTransaction";
+import { resolveClientPayoutConfig } from "@/app/lib/payout-config-client";
+import { PAYOUT_CHAIN } from "@/app/lib/payoutConfig";
+import { useCallback, useState } from "react";
+import type { Address, Hex } from "viem";
+import { useAccount } from "wagmi";
+
+export type ClaimOnChainStatus =
+  | "idle"
+  | "voucher"
+  | "switch"
+  | "wallet-confirm"
+  | "mining"
+  | "success"
+  | "error";
+
+async function ensureWalletLinkedForPayout(address: Address): Promise<void> {
+  const normalized = address.toLowerCase();
+
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const { linkedWallet } = await fetchLinkedPayoutWallet();
+    if (linkedWallet?.toLowerCase() === normalized) {
+      return;
+    }
+    if (attempt === 0) {
+      await linkPayoutWallet(address);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 400));
+  }
+
+  throw new Error(
+    "This wallet is still being linked — open the Wallet tab, wait a few seconds, then try Claim again",
+  );
+}
+
+function phaseToStatus(phase: SubmitClaimPhase): ClaimOnChainStatus {
+  switch (phase) {
+    case "wallet-confirm":
+      return "wallet-confirm";
+    case "mining":
+      return "mining";
+    default:
+      return "wallet-confirm";
+  }
+}
+
+export function useClaimOnChain() {
+  const { address, isConnected } = useAccount();
+  const [status, setStatus] = useState<ClaimOnChainStatus>("idle");
+  const [error, setError] = useState<string | null>(null);
+  const [txHash, setTxHash] = useState<Hex | undefined>();
+
+  const claimEpoch = useCallback(
+    async (
+      epochId: string,
+    ): Promise<{
+      ok: boolean;
+      error?: string;
+      txHash?: Hex;
+      chainId?: number;
+    }> => {
+      if (!isConnected || !address) {
+        const message = "Connect your wallet on the Wallet tab first";
+        setError(message);
+        setStatus("error");
+        return { ok: false, error: message };
+      }
+
+      const payout = await resolveClientPayoutConfig();
+      if (!payout) {
+        const message =
+          "Payout contract not configured — set PAYOUT_CONTRACT_ADDRESS and PAYOUT_CHAIN_ID";
+        setError(message);
+        setStatus("error");
+        return { ok: false, error: message };
+      }
+
+      setError(null);
+      setTxHash(undefined);
+
+      try {
+        setStatus("switch");
+        const wagmiChainId = await ensurePayoutChainSelected(payout.chainId);
+
+        setStatus("voucher");
+        await ensureWalletLinkedForPayout(address as Address);
+        const voucher = await claimPayoutVoucher(epochId, address);
+
+        const hash = await submitClaimTransaction(
+          {
+            payout,
+            voucher,
+            account: address as Address,
+            wagmiChainId,
+          },
+          (phase) => setStatus(phaseToStatus(phase)),
+        );
+
+        setTxHash(hash);
+        setStatus("success");
+        return { ok: true, txHash: hash, chainId: payout.chainId };
+      } catch (err) {
+        const message = toClaimError(err);
+        setError(message);
+        setStatus("error");
+        return { ok: false, error: message };
+      }
+    },
+    [address, isConnected],
+  );
+
+  const reset = useCallback(() => {
+    setStatus("idle");
+    setError(null);
+    setTxHash(undefined);
+  }, []);
+
+  const busy =
+    status === "voucher" ||
+    status === "switch" ||
+    status === "wallet-confirm" ||
+    status === "mining";
+
+  const statusHint =
+    status === "switch"
+      ? "Step 1: If MetaMask asks, approve switching to BSC Testnet — then wait for Step 2"
+      : status === "voucher"
+        ? "Preparing your claim voucher…"
+        : status === "wallet-confirm"
+          ? "Step 2: Confirm the contract claim in MetaMask (must show contract interaction + gas fee)"
+          : status === "mining"
+            ? "Claim sent — waiting for confirmation…"
+            : null;
+
+  return {
+    claimEpoch,
+    reset,
+    status,
+    statusHint,
+    error,
+    txHash,
+    busy,
+    payoutChain: PAYOUT_CHAIN,
+  };
+}

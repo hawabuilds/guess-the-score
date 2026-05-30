@@ -1,11 +1,13 @@
 "use client";
 
 import { toBlob } from "html-to-image";
+import { useTranslations } from "next-intl";
 import { DM_Mono, Figtree } from "next/font/google";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { bnbStr, usd } from "../data/rewards";
 import { sessionUserIdentity } from "../lib/auth-client";
+import { translateTierLabel } from "../lib/i18n-tiers";
 import { TROPHY_SRC } from "./dashboard-assets/trophy";
 import styles from "./CelebrationCard.module.css";
 
@@ -66,13 +68,6 @@ function generateConfetti(): ConfettiPiece[] {
     transform: `rotate(${Math.random() * 360}deg)`,
     opacity: (0.5 + Math.random() * 0.45).toFixed(2),
   }));
-}
-
-function buildTweetText(data: ShareCardData | null) {
-  const amt = data?.bnb
-    ? `${bnbStr(data.bnb)} BNB (≈ ${usd(data.bnb)})`
-    : "real money";
-  return `I just won ${amt} predicting match scores on @guessthescore! ⚽🏆 Climb the leaderboard and win every day. #GuessTheScore`;
 }
 
 function avatarProxyUrl(imageUrl: string): string {
@@ -206,11 +201,15 @@ export default function CelebrationCard({
   onClose,
   onShareFallback,
 }: CelebrationCardProps) {
+  const t = useTranslations("celebrationCard");
+  const tc = useTranslations("common");
+  const tt = useTranslations("tiers");
   const { data: session, status } = useSession();
   const user = sessionUserIdentity(
     status,
     session?.user?.name,
     session?.user?.image,
+    session?.user?.username,
   );
   const profileImage = session?.user?.image ?? null;
   const avatarSrc = useMemo(
@@ -244,9 +243,22 @@ export default function CelebrationCard({
 
   const dayLabel = data
     ? data.date
-      ? `${data.day} · ${data.date}`
+      ? tc("dayDate", { day: data.day, date: data.date })
       : data.day
     : "";
+
+  const buildTweetText = useCallback(
+    (shareData: ShareCardData | null) => {
+      const amount = shareData?.bnb
+        ? t("tweetAmount", {
+            bnb: bnbStr(shareData.bnb),
+            usd: usd(shareData.bnb),
+          })
+        : null;
+      return amount ? t("tweetWon", { amount }) : t("tweetWonFallback");
+    },
+    [t],
+  );
 
   const captureCardBlob = useCallback(async (): Promise<Blob | null> => {
     const card = cardRef.current;
@@ -405,7 +417,7 @@ export default function CelebrationCard({
       onClick={handleBackdropClick}
       role="dialog"
       aria-modal="true"
-      aria-label="Celebration"
+      aria-label={t("ariaLabel")}
     >
       <div className={styles.shareModal}>
         <div
@@ -437,23 +449,23 @@ export default function CelebrationCard({
                 id="share-logo"
                 className={styles.shareLogo}
                 src={SHARE_CARD_LOGO_SRC}
-                alt="SCORE logo"
+                alt={tc("scoreNavLogoAlt")}
                 width={SHARE_CARD_LOGO_WIDTH}
                 height={SHARE_CARD_LOGO_HEIGHT}
                 decoding="sync"
                 onLoad={handleLogoLoad}
                 onError={handleLogoError}
               />
-              <div className={styles.shareBrand}>SCORE</div>
+              <div className={styles.shareBrand}>{tc("scoreBrand")}</div>
             </div>
 
             <div className={styles.shareHero}>
-              <div className={styles.shareWon}>WINNER</div>
+              <div className={styles.shareWon}>{t("winner")}</div>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 className={styles.shareTrophy}
                 src={TROPHY_SRC}
-                alt="Trophy"
+                alt={tc("trophyAlt")}
               />
             </div>
 
@@ -476,24 +488,26 @@ export default function CelebrationCard({
             </div>
 
             <div className={styles.shareMeta}>
-              <span className={styles.shareChip}>{data.tier}</span>
+              <span className={styles.shareChip}>
+                {translateTierLabel(tt, data.tier)}
+              </span>
               <span className={`${styles.shareChip} ${styles.shareChipDay}`}>
                 {dayLabel}
               </span>
             </div>
 
             <div className={styles.sharePayout}>
-              <div className={styles.spLabel}>Prize won</div>
+              <div className={styles.spLabel}>{t("prizeWon")}</div>
               <div className={styles.shareAmtBnb}>
                 {bnbStr(data.bnb)}{" "}
-                <span className={styles.shareAmtUnit}>BNB</span>
+                <span className={styles.shareAmtUnit}>{tc("bnb")}</span>
               </div>
-              <div className={styles.shareAmtUsd}>≈ {usd(data.bnb)} USD</div>
+              <div className={styles.shareAmtUsd}>
+                {tc("approxUsd", { amount: usd(data.bnb) })}
+              </div>
             </div>
 
-            <div className={styles.shareTag}>
-              guessthescore · predict &amp; win daily
-            </div>
+            <div className={styles.shareTag}>{t("tagline")}</div>
           </div>
         </div>
 
@@ -502,14 +516,12 @@ export default function CelebrationCard({
           <img
             className={styles.shareCardImg}
             src={snapshotUrl}
-            alt="Your win — press and hold to save"
+            alt={t("snapshotAlt")}
           />
         ) : null}
 
         {snapshotUrl ? (
-          <div className={styles.shareHint}>
-            Press &amp; hold the image to save it
-          </div>
+          <div className={styles.shareHint}>{t("saveHint")}</div>
         ) : null}
 
         <div className={styles.shareActions}>
@@ -520,14 +532,14 @@ export default function CelebrationCard({
             disabled={preparingCapture}
           >
             <XIcon />
-            {preparingCapture ? "Preparing image…" : "Share on X"}
+            {preparingCapture ? t("preparingImage") : t("shareOnX")}
           </button>
           <button
             type="button"
             className={`${styles.btn} ${styles.btnGhost}`}
             onClick={onClose}
           >
-            Done
+            {tc("done")}
           </button>
         </div>
       </div>

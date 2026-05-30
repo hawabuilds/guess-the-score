@@ -29,6 +29,19 @@ const TEAM_ALIASES: Record<string, readonly string[]> = {
     "Les Verts",
   ],
   Nice: ["Nice", "OGC Nice", "Les Aiglons", "Aiglons"],
+  "Bosnia & Herzegovina": ["Bosnia", "BIH", "Bosnia Herzegovina"],
+  "FYR Macedonia": ["Macedonia", "North Macedonia", "MK"],
+  "South Africa": ["RSA", "Bafana Bafana"],
+  "Curaçao": ["Curacao", "Curaçao", "Cura??ao"],
+  Scotland: ["Scotland", "SCO"],
+  "Paris Saint Germain": [
+    "PSG",
+    "Paris SG",
+    "Paris Saint-Germain",
+    "Paris St Germain",
+    "Paris St. Germain",
+  ],
+  Arsenal: ["Gunners"],
 };
 
 const SCORE_PATTERN = /(\d{1,2})\s*(?:[-:–—]|(?:\s+))\s*(\d{1,2})/;
@@ -59,6 +72,12 @@ function stripAccents(text: string): string {
 /** Case- and accent-insensitive text for team alias matching. */
 export function normalizeForTeamMatch(text: string): string {
   return stripAccents(text.toLowerCase());
+}
+
+/** X sometimes returns Curaçao as Cura??ao — match replies and match posts anyway. */
+export function textMentionsCuracaoVariant(text: string): boolean {
+  const lower = normalizeForTeamMatch(text);
+  return /cura(?:\?{1,2}|ç|c)?ao/.test(lower);
 }
 
 function findEarliestTeamMatch(text: string, aliases: string[]): TeamMatch | null {

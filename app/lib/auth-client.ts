@@ -56,12 +56,24 @@ export function sessionUserIdentity(
   status: "authenticated" | "loading" | "unauthenticated",
   name?: string | null,
   image?: string | null,
+  username?: string | null,
 ) {
   const signedIn = status === "authenticated";
+  const handle = signedIn
+    ? username
+      ? `@${username.replace(/^@/, "")}`
+      : formatHandle(name)
+    : "@jordanlee";
+  const resolvedUsername = signedIn
+    ? username
+      ? username.replace(/^@/, "")
+      : twitterUsername(name)
+    : "jordanlee";
+
   return {
-    handle: signedIn ? formatHandle(name) : "@jordanlee",
-    initials: signedIn ? getInitials(name) : "JL",
-    username: signedIn ? twitterUsername(name) : "jordanlee",
+    handle,
+    initials: signedIn ? getInitials(handle) : "JL",
+    username: resolvedUsername,
     image: signedIn && image ? image : undefined,
     signedIn,
   };

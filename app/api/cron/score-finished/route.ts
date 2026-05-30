@@ -1,5 +1,6 @@
 import { isCronAuthorized } from "@/lib/cronAuth";
 import { autoScoreFinishedMatches } from "@/lib/scoreFinishedMatches";
+import { syncFixtureRegistryToSupabase } from "@/lib/syncFixtureRegistry";
 import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -11,9 +12,14 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    const registry = await syncFixtureRegistryToSupabase();
     const results = await autoScoreFinishedMatches();
     return NextResponse.json({
       checkedAt: new Date().toISOString(),
+      registry: {
+        expected: registry.expectedMatchIds,
+        registered: registry.registeredMatchIds,
+      },
       results,
     });
   } catch (error) {

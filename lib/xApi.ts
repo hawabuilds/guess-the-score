@@ -122,3 +122,57 @@ export async function searchRecentPosts(
 
   return hits;
 }
+
+const TWEET_LOOKUP_URL = "https://api.twitter.com/2/tweets";
+
+type XTweetLookupResponse = {
+  data?: XTweet;
+  includes?: { users?: XUser[] };
+  errors?: Array<{ message?: string }>;
+  title?: string;
+  detail?: string;
+};
+
+/** Load a single tweet by id (validates cached match posts). */
+export async function fetchTweetById(tweetId: string): Promise<XTweetHit | null> {
+  const bearerToken = getBearerToken();
+  const url = new URL(`${TWEET_LOOKUP_URL}/${tweetId}`);
+  url.searchParams.set("tweet.fields", "author_id,created_at,text");
+  url.searchParams.set("expansions", "author_id");
+  url.searchParams.set("user.fields", "username");
+
+  const response = await fetch(url.toString(), {
+    headers: {
+      Authorization: `Bearer ${bearerToken}`,
+      "User-Agent": "guess-the-score/1.0",
+    },
+    cache: "no-store",
+  });
+
+  const body = (await response.json()) as XTweetLookupResponse;
+
+  if (!response.ok) {
+    if (response.status === 404) return null;
+    const message =
+      body.errors?.[0]?.message ||
+      body.detail ||
+      body.title ||
+      `X API error (${response.status})`;
+    throw new Error(message);
+  }
+
+  const tweet = body.data;
+  if (!tweet?.author_id || !tweet.created_at) return null;
+
+  const authorUsername = body.includes?.users?.find(
+    (user) => user.id === tweet.author_id,
+  )?.username;
+  if (!authorUsername) return null;
+
+  return {
+    id: tweet.id,
+    text: tweet.text,
+    createdAt: tweet.created_at,
+    authorUsername,
+  };
+}

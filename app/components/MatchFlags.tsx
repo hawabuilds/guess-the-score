@@ -12,7 +12,7 @@ type FlagProps = {
 
 type SvgFlagProps = SVGProps<SVGSVGElement>;
 
-const FLAGS = FlagIcons as Record<CountryCode, ComponentType<SvgFlagProps>>;
+const FLAGS = FlagIcons as Record<string, ComponentType<SvgFlagProps>>;
 
 export function CountryFlag({
   code,
@@ -30,5 +30,8 @@ export function TeamFlag({
   team,
   ...props
 }: FlagProps & { team: string }) {
-  return <CountryFlag code={getTeamCountryCode(team)} {...props} />;
+  const code = getTeamCountryCode(team);
+  if (!code) return null;
+
+  return <CountryFlag code={code} {...props} />;
 }

@@ -1,16 +1,20 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import {
   sessionUserIdentity,
   signOutOfX,
 } from "../lib/auth-client";
+import LanguageToggle from "./LanguageToggle";
 import LbAvatar from "./LbAvatar";
 import SwitchXAccountModal from "./SwitchXAccountModal";
 import styles from "./Dashboard.module.css";
 
 export default function NavUserControl() {
+  const t = useTranslations("nav");
+  const tLang = useTranslations("languageToggle");
   const { data: session, status } = useSession();
   const [open, setOpen] = useState(false);
   const [switchModalOpen, setSwitchModalOpen] = useState(false);
@@ -19,6 +23,7 @@ export default function NavUserControl() {
     status,
     session?.user?.name,
     session?.user?.image,
+    session?.user?.username,
   );
 
   useEffect(() => {
@@ -53,7 +58,7 @@ export default function NavUserControl() {
           onClick={() => setOpen((value) => !value)}
           aria-expanded={open}
           aria-haspopup="menu"
-          aria-label="Account menu"
+          aria-label={t("accountMenu")}
         >
           <span className={styles.navUserAv}>
             <LbAvatar
@@ -67,6 +72,11 @@ export default function NavUserControl() {
         </button>
         {open ? (
           <div className={styles.navUserMenu} role="menu">
+            <div className={styles.navUserMenuLang} role="none">
+              <span className={styles.navUserMenuLangLabel}>{tLang("label")}</span>
+              <LanguageToggle variant="menu" />
+            </div>
+            <div className={styles.navUserMenuDivider} role="separator" />
             <button
               type="button"
               className={styles.navUserMenuItem}
@@ -76,7 +86,7 @@ export default function NavUserControl() {
                 setSwitchModalOpen(true);
               }}
             >
-              Switch X account
+              {t("switchXAccount")}
             </button>
             <button
               type="button"
@@ -87,7 +97,7 @@ export default function NavUserControl() {
                 signOutOfX();
               }}
             >
-              Sign out of X
+              {t("signOutOfX")}
             </button>
           </div>
         ) : null}

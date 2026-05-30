@@ -13,7 +13,10 @@ type TestCase = {
   expected: ParsedPrediction | null;
 };
 
-const MATCH = FIXTURES[0]!;
+const MATCH = { home: "Saint-Étienne", away: "Nice" };
+const BOSNIA_MATCH = FIXTURES.find((f) => f.id === 10)!;
+const UCL_FINAL = FIXTURES.find((f) => f.id === 12)!;
+const SCOTLAND_MATCH = FIXTURES.find((f) => f.id === 11)!;
 
 const CASES: TestCase[] = [
   {
@@ -105,6 +108,42 @@ const CASES: TestCase[] = [
     reply: "Saint-Étienne one - nil Nice",
     fixture: MATCH,
     expected: null,
+  },
+  {
+    name: "valid: Bosnia short names",
+    reply: "Bosnia 1-0 Macedonia",
+    fixture: BOSNIA_MATCH,
+    expected: { homeScore: 1, awayScore: 0 },
+  },
+  {
+    name: "valid: Bosnia reversed short names",
+    reply: "Macedonia 0-1 Bosnia",
+    fixture: BOSNIA_MATCH,
+    expected: { homeScore: 1, awayScore: 0 },
+  },
+  {
+    name: "valid: UCL Arsenal 1-0 PSG abbreviations",
+    reply: "Arsenal 1-0 PSG",
+    fixture: UCL_FINAL,
+    expected: { homeScore: 0, awayScore: 1 },
+  },
+  {
+    name: "valid: UCL PSG hyphenated full name",
+    reply: "Paris Saint-Germain 2-1 Arsenal",
+    fixture: UCL_FINAL,
+    expected: { homeScore: 2, awayScore: 1 },
+  },
+  {
+    name: "valid: UCL Gunners nickname",
+    reply: "Gunners 1-1 PSG",
+    fixture: UCL_FINAL,
+    expected: { homeScore: 1, awayScore: 1 },
+  },
+  {
+    name: "valid: Scotland corrupted Curaçao in reply",
+    reply: "Scotland 2-0 Cura??ao",
+    fixture: SCOTLAND_MATCH,
+    expected: { homeScore: 2, awayScore: 0 },
   },
 ];
 

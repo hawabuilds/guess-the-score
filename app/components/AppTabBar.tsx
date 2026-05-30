@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import styles from "./AppTabBar.module.css";
 
 export type AppTab = "home" | "ranks" | "wallet" | "claim";
@@ -83,6 +84,8 @@ export default function AppTabBar({
   onWallet,
   onClaim,
 }: AppTabBarProps) {
+  const t = useTranslations("tabBar");
+
   const tabClass = (tab: AppTab) =>
     `${styles.tab}${activeTab === tab ? ` ${styles.tabActive}` : ""}`;
 
@@ -90,12 +93,12 @@ export default function AppTabBar({
     <div className={styles.tabbar}>
       <button type="button" className={tabClass("home")} onClick={onHome}>
         <TabHomeIcon />
-        Home
+        {t("home")}
         <div className={styles.tabPip} />
       </button>
       <button type="button" className={tabClass("ranks")} onClick={onRanks}>
         <TabRanksIcon />
-        Ranks
+        {t("ranks")}
         <div className={styles.tabPip} />
       </button>
       <button
@@ -105,7 +108,7 @@ export default function AppTabBar({
         disabled={!onWallet}
       >
         <TabWalletIcon />
-        Wallet
+        {t("wallet")}
         <div className={styles.tabPip} />
       </button>
       <button
@@ -115,7 +118,7 @@ export default function AppTabBar({
         disabled={!onClaim}
       >
         <TabClaimIcon />
-        Claim
+        {t("claim")}
         <div className={styles.tabPip} />
       </button>
     </div>

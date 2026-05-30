@@ -1,4 +1,4 @@
-import { getFixtureById, FIXTURES, fixtureDateTime } from "@/app/data/fixtures";
+import { getFixtureById, getUpcomingFixtures } from "@/app/data/fixtures";
 import { resolveMatchPost } from "@/lib/resolveMatchTweet";
 import { matchReplyIntentUrl } from "@/lib/xApi";
 import { NextRequest, NextResponse } from "next/server";
@@ -19,7 +19,10 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const post = await resolveMatchPost(fixture);
+    const post = await resolveMatchPost(fixture, {
+      trustCachedTweet: true,
+      discoverMaxPages: 1,
+    });
     if (!post) {
       return NextResponse.json(
         {
@@ -53,12 +56,15 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST() {
-  const upcoming = FIXTURES.filter((fixture) => fixtureDateTime(fixture) >= new Date());
+  const upcoming = getUpcomingFixtures();
   const results = [];
 
   for (const fixture of upcoming) {
     try {
-      const post = await resolveMatchPost(fixture);
+      const post = await resolveMatchPost(fixture, {
+        trustCachedTweet: true,
+        discoverMaxPages: 1,
+      });
       results.push({
         matchId: fixture.id,
         found: Boolean(post),
