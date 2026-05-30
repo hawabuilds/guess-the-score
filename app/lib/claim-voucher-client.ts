@@ -2,9 +2,10 @@ export type ClaimVoucherResponse = {
   epochId: string;
   to: string;
   amount: string;
-  voucherId: string;
-  signature: string;
   rank: number;
+  alreadyClaimed?: boolean;
+  voucherId?: string;
+  signature?: string;
 };
 
 export async function claimPayoutVoucher(

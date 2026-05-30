@@ -69,6 +69,7 @@ export function useClaimOnChain() {
       txHash?: Hex;
       chainId?: number;
       amountBnb?: number;
+      alreadyClaimed?: boolean;
     }> => {
       if (!isConnected || !address) {
         const message = "Connect your wallet on the Wallet tab first";
@@ -89,6 +90,8 @@ export function useClaimOnChain() {
       setError(null);
       setTxHash(undefined);
 
+      let amountBnb: number | undefined;
+
       try {
         setStatus("switch");
         const wagmiChainId = await ensurePayoutChainSelected(payout.chainId);
@@ -96,12 +99,33 @@ export function useClaimOnChain() {
         setStatus("voucher");
         await ensureWalletLinkedForPayout(address as Address);
         const voucher = await claimPayoutVoucher(epochId, address);
-        const amountBnb = Number(BigInt(voucher.amount)) / 1e18;
+        amountBnb = Number(BigInt(voucher.amount)) / 1e18;
+
+        if (voucher.alreadyClaimed) {
+          setStatus("success");
+          return {
+            ok: true,
+            chainId: payout.chainId,
+            amountBnb,
+            alreadyClaimed: true,
+          };
+        }
+
+        if (!voucher.signature || !voucher.voucherId) {
+          throw new Error("Invalid claim voucher from server");
+        }
 
         const hash = await submitClaimTransaction(
           {
             payout,
-            voucher,
+            voucher: {
+              epochId: voucher.epochId,
+              to: voucher.to,
+              amount: voucher.amount,
+              voucherId: voucher.voucherId,
+              signature: voucher.signature,
+              rank: voucher.rank,
+            },
             account: address as Address,
             wagmiChainId,
           },
@@ -118,6 +142,19 @@ export function useClaimOnChain() {
         };
       } catch (err) {
         const message = toClaimError(err);
+        if (
+          amountBnb !== undefined &&
+          /voucher used|already claimed/i.test(message)
+        ) {
+          setError(null);
+          setStatus("success");
+          return {
+            ok: true,
+            chainId: payout.chainId,
+            amountBnb,
+            alreadyClaimed: true,
+          };
+        }
         setError(message);
         setStatus("error");
         return { ok: false, error: message };

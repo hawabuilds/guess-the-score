@@ -25,6 +25,13 @@ import { signInWithX } from "../lib/auth-client";
 
 import { translateTierLabel } from "../lib/i18n-tiers";
 
+import {
+  clearPendingCelebration,
+  pendingToShareCard,
+  readPendingCelebration,
+  savePendingCelebration,
+  type PendingCelebration,
+} from "../lib/claimCelebrationPending";
 import { getPayoutExplorerTxUrl } from "../lib/payout-config-client";
 import { useClaimOnChain } from "../lib/useClaimOnChain";
 
@@ -258,8 +265,6 @@ export default function Claim({
 
   }, [status]);
 
-
-
   const showToast = useCallback((msg: string, durationMs = 8000) => {
 
     if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -283,14 +288,10 @@ export default function Claim({
 
 
   const closeCelebration = () => {
-
+    clearPendingCelebration();
     setCelebration(null);
-
     showToast(t("toastClaimed"));
-
   };
-
-
 
   const translateRewardDay = (day: string) => {
 
@@ -334,7 +335,64 @@ export default function Claim({
 
     });
 
+  const showCelebrationForReward = useCallback(
+    (
+      reward: ClaimableRewardDto,
+      bnb: number,
+      extra?: Partial<PendingCelebration>,
+    ) => {
+      const payload: PendingCelebration = {
+        epochId: reward.epochId,
+        tier: reward.tier,
+        day: translateRewardDay(reward.day),
+        date: reward.date,
+        bnb,
+        ...extra,
+      };
+      savePendingCelebration(payload);
+      setCelebration(pendingToShareCard(payload));
+      resetClaim();
+    },
+    [resetClaim],
+  );
 
+  const tryRestorePendingCelebration = useCallback(
+    (list: ClaimableRewardDto[]) => {
+      const pending = readPendingCelebration();
+      if (!pending || celebration !== null) return;
+
+      const reward = list.find((r) => r.epochId === pending.epochId);
+      if (!reward?.claimed && !pending.txHash) return;
+
+      setCelebration(pendingToShareCard(pending));
+      resetClaim();
+      if (pending.txHash && pending.chainId) {
+        setExplorerLink(
+          getPayoutExplorerTxUrl(pending.chainId, pending.txHash as `0x${string}`),
+        );
+      }
+    },
+    [celebration, resetClaim],
+  );
+
+  useEffect(() => {
+    if (status !== "authenticated" || loading) return;
+    tryRestorePendingCelebration(rewards);
+  }, [status, loading, rewards, tryRestorePendingCelebration]);
+
+  useEffect(() => {
+    if (status !== "authenticated") return;
+
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      void reloadRewards()
+        .then((list) => tryRestorePendingCelebration(list))
+        .catch(() => undefined);
+    };
+
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [status, reloadRewards, tryRestorePendingCelebration]);
 
   const ensureWallet = (): boolean => {
 
@@ -357,28 +415,50 @@ export default function Claim({
 
 
   const runClaim = async (reward: ClaimableRewardDto) => {
-
     if (!ensureWallet()) return false;
 
-
-
     resetClaim();
-
     setClaimingId(reward.id);
 
-    const result = await claimEpoch(reward.epochId);
+    savePendingCelebration({
+      epochId: reward.epochId,
+      tier: reward.tier,
+      day: translateRewardDay(reward.day),
+      date: reward.date,
+      bnb: reward.bnb,
+    });
 
+    const result = await claimEpoch(reward.epochId);
     setClaimingId(null);
 
-
+    const claimedBnb = result.amountBnb ?? reward.bnb;
+    const celebrationExtra: Partial<PendingCelebration> = {
+      bnb: claimedBnb,
+      ...(result.txHash && result.chainId
+        ? { txHash: result.txHash, chainId: result.chainId }
+        : {}),
+    };
 
     if (!result.ok) {
+      if (/already claimed|voucher used/i.test(result.error ?? "")) {
+        setExplorerLink(null);
+        try {
+          await reloadRewards();
+        } catch {
+          setRewards((prev) =>
+            prev.map((r) =>
+              r.id === reward.id ? { ...r, claimed: true, bnb: claimedBnb } : r,
+            ),
+          );
+        }
+        showCelebrationForReward(reward, claimedBnb, celebrationExtra);
+        return true;
+      }
 
       setExplorerLink(null);
       showToast(result.error ?? t("claimFailed"), 12000);
-
+      clearPendingCelebration();
       return false;
-
     }
 
     if (result.txHash && result.chainId) {
@@ -386,8 +466,6 @@ export default function Claim({
         getPayoutExplorerTxUrl(result.chainId, result.txHash),
       );
     }
-
-    const claimedBnb = result.amountBnb ?? reward.bnb;
 
     try {
       await reloadRewards();
@@ -399,15 +477,8 @@ export default function Claim({
       );
     }
 
-    setCelebration({
-      tier: reward.tier,
-      day: translateRewardDay(reward.day),
-      date: reward.date,
-      bnb: claimedBnb,
-    });
-
+    showCelebrationForReward(reward, claimedBnb, celebrationExtra);
     return true;
-
   };
 
 
@@ -461,6 +532,12 @@ export default function Claim({
       const result = await claimEpoch(reward.epochId);
 
       if (!result.ok) {
+        if (/already claimed|voucher used/i.test(result.error ?? "")) {
+          claimedCount += 1;
+          total += result.amountBnb ?? reward.bnb;
+          lastReward = reward;
+          continue;
+        }
         showToast(result.error ?? t("claimFailed"));
         break;
       }
@@ -495,29 +572,15 @@ export default function Claim({
 
 
     if (lastReward) {
-
-      setCelebration({
-
-        tier: lastReward.tier,
-
-        day:
-
-          claimedCount > 1
-
-            ? tc("multiDays", { count: claimedCount })
-
-            : translateRewardDay(lastReward.day),
-
-        date: claimedCount > 1 ? "" : lastReward.date,
-
-        bnb: total,
-
-        multi: claimedCount > 1 ? claimedCount : undefined,
-
+      const multi = claimedCount > 1 ? claimedCount : undefined;
+      showCelebrationForReward(lastReward, total, {
+        day: multi
+          ? tc("multiDays", { count: claimedCount })
+          : translateRewardDay(lastReward.day),
+        date: multi ? "" : lastReward.date,
+        multi,
       });
-
     }
-
   };
 
 

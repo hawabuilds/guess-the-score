@@ -229,13 +229,20 @@ export async function POST(request: NextRequest) {
           voucherId,
         );
         if (alreadyClaimed) {
-          return NextResponse.json(
-            {
-              error:
-                "This day's reward was already claimed on-chain. The tBNB was sent when you confirmed that claim (usually to whichever wallet was linked then). You cannot claim the same day twice by switching wallets.",
-            },
-            { status: 409 },
-          );
+          const amount = payoutAmountWei(potWei, snapshot.rank);
+          if (!amount || amount <= 0n) {
+            return NextResponse.json(
+              { error: "Could not derive payout amount for your rank" },
+              { status: 403 },
+            );
+          }
+          return NextResponse.json({
+            alreadyClaimed: true,
+            epochId: epochId.toString(),
+            to,
+            amount: amount.toString(),
+            rank: snapshot.rank,
+          });
         }
       } catch {
         // Continue — on-chain check is best-effort if RPC fails.

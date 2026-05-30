@@ -68,10 +68,15 @@ export async function ensurePayoutChainSelected(
 
 export type SubmitClaimPhase = "wallet-confirm" | "mining";
 
+type SignedClaimVoucher = ClaimVoucherResponse & {
+  voucherId: string;
+  signature: string;
+};
+
 export async function submitClaimTransaction(
   params: {
     payout: ClientPayoutConfig;
-    voucher: ClaimVoucherResponse;
+    voucher: SignedClaimVoucher;
     account: Address;
     wagmiChainId: WagmiPayoutChainId;
   },
