@@ -160,7 +160,6 @@ export default function Claim({
     claimEpoch,
     busy,
     reset: resetClaim,
-    statusHint,
     error: claimError,
   } = useClaimOnChain();
 
@@ -688,36 +687,6 @@ export default function Claim({
 
       <>
 
-        {claimable.length > 0 && !isConnected ? (
-
-          <p className={styles.claimNotice} role="status">
-
-            {t("connectWalletHint")}{" "}
-
-            <button type="button" className={styles.claimLink} onClick={onGoToWallet}>
-
-              {t("goToWallet")}
-
-            </button>
-
-          </p>
-
-        ) : null}
-
-
-
-        {claimable.length > 0 && isConnected && statusHint ? (
-
-          <p className={styles.claimNotice} role="status">
-
-            {statusHint}
-
-          </p>
-
-        ) : null}
-
-
-
         {walletLinkError ? (
 
           <p className={styles.claimError} role="alert">
@@ -761,14 +730,6 @@ export default function Claim({
             {busy ? t("claimWcBusy") : t("claimWcHint")}
 
           </p>
-
-        ) : null}
-
-
-
-        {claimable.length > 0 && isConnected && !busy && !isQrWallet ? (
-
-          <p className={styles.claimNotice}>{t("claimMetaMaskHint")}</p>
 
         ) : null}
 

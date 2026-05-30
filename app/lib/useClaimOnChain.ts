@@ -131,22 +131,10 @@ export function useClaimOnChain() {
     status === "wallet-confirm" ||
     status === "mining";
 
-  const statusHint =
-    status === "switch"
-      ? "Step 1: If MetaMask asks, approve switching to BSC Testnet — then wait for Step 2"
-      : status === "voucher"
-        ? "Preparing your claim voucher…"
-        : status === "wallet-confirm"
-          ? "Step 2: Confirm the contract claim in MetaMask (must show contract interaction + gas fee)"
-          : status === "mining"
-            ? "Claim sent — waiting for confirmation…"
-            : null;
-
   return {
     claimEpoch,
     reset,
     status,
-    statusHint,
     error,
     txHash,
     busy,
