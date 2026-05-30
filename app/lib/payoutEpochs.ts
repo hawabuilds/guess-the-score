@@ -1,5 +1,9 @@
 import { getSupabaseAdminClient } from "@/app/lib/supabase";
 import { getAvailableEpochPotWei } from "@/lib/payoutLiability";
+import {
+  ensureEpochOpenedOnChain,
+  type EnsureEpochOpenResult,
+} from "@/lib/payoutOpenEpoch";
 
 export type PayoutEpochRow = {
   epoch_id: number;
@@ -91,6 +95,7 @@ export type EpochPotSyncMeta = {
   contractBalanceWei: string;
   reservedLiabilityWei: string;
   availablePotWei: string;
+  epochOpenOnChain?: EnsureEpochOpenResult;
 };
 
 /**
@@ -137,10 +142,15 @@ export async function ensurePayoutEpochForSnapshot(
   }
 
   const epoch = await upsertPayoutEpochPot(epochId, available.availablePotWei);
+  const epochOpenOnChain = await ensureEpochOpenedOnChain(
+    epochId,
+    available.availablePotWei,
+  );
   const potSync: EpochPotSyncMeta = {
     contractBalanceWei: available.contractBalanceWei.toString(),
     reservedLiabilityWei: available.reservedLiabilityWei.toString(),
     availablePotWei: available.availablePotWei.toString(),
+    epochOpenOnChain,
   };
 
   return {

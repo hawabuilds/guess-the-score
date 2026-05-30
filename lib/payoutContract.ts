@@ -23,6 +23,48 @@ export const scorePayoutAbi = [
   },
   {
     type: "function",
+    name: "openEpoch",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "epochId", type: "uint256" },
+      { name: "pot", type: "uint256" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "epochs",
+    stateMutability: "view",
+    inputs: [{ name: "epochId", type: "uint256" }],
+    outputs: [
+      { name: "pot", type: "uint256" },
+      { name: "claimedSum", type: "uint256" },
+      { name: "open", type: "bool" },
+    ],
+  },
+  {
+    type: "function",
+    name: "latestEpochId",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "signer",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "address" }],
+  },
+  {
+    type: "function",
+    name: "epochRemaining",
+    stateMutability: "view",
+    inputs: [{ name: "epochId", type: "uint256" }],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
     name: "voucherUsed",
     stateMutability: "view",
     inputs: [{ name: "", type: "bytes32" }],

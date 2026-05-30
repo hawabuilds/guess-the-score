@@ -84,6 +84,19 @@ export async function snapshotEpochLeaderboard(
     };
   }
 
+  const epochOpen = potSync?.epochOpenOnChain;
+  if (
+    epochOpen &&
+    epochOpen.status === "error" &&
+    process.env.PAYOUT_OPERATOR_PRIVATE_KEY?.trim()
+  ) {
+    return {
+      status: "skipped",
+      reason: `Could not open epoch on payout contract: ${epochOpen.reason}`,
+      epochId: epochKey,
+    };
+  }
+
   const rows = await insertLeaderboardSnapshot(epochId, topTwenty);
   await markPayoutEpochFinalized(epochId);
 
@@ -100,6 +113,7 @@ export async function snapshotEpochLeaderboard(
           contractBalanceWei: potSync.contractBalanceWei,
           reservedLiabilityWei: potSync.reservedLiabilityWei,
           availablePotWei: potSync.availablePotWei,
+          epochOpenOnChain: epochOpen,
         }
       : {}),
   };

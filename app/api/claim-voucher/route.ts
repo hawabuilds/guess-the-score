@@ -23,8 +23,15 @@ import {
   isVoucherClaimedOnChain,
   readPublicPayoutConfig,
 } from "@/lib/payoutContract";
+import {
+  ensureEpochOpenedOnChain,
+  readContractSignerAddress,
+  readEpochRemainingWei,
+  readOnChainEpoch,
+} from "@/lib/payoutOpenEpoch";
 import { parseWalletAddress } from "@/lib/walletAddress";
 import { NextRequest, NextResponse } from "next/server";
+import { privateKeyToAccount } from "viem/accounts";
 import type { Address } from "viem";
 
 export const dynamic = "force-dynamic";
@@ -117,13 +124,56 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const potWei = parsePotWei(epoch.pot_wei);
-    if (!potWei) {
+    const dbPotWei = parsePotWei(epoch.pot_wei);
+    if (!dbPotWei) {
       return NextResponse.json(
         { error: "Epoch pot is not configured" },
         { status: 503 },
       );
     }
+
+    const contractSigner = await readContractSignerAddress();
+    if (contractSigner) {
+      const serverSigner = privateKeyToAccount(signerEnv.privateKey).address;
+      if (serverSigner.toLowerCase() !== contractSigner.toLowerCase()) {
+        return NextResponse.json(
+          {
+            error:
+              "Server SIGNER_PRIVATE_KEY does not match the payout contract signer address — fix Vercel env to use the same key you set in the Remix constructor",
+          },
+          { status: 503 },
+        );
+      }
+    }
+
+    let onChain = await readOnChainEpoch(epochId);
+    if (!onChain?.open) {
+      const opened = await ensureEpochOpenedOnChain(epochId, dbPotWei);
+      if (opened.status === "error") {
+        return NextResponse.json({ error: opened.reason }, { status: 503 });
+      }
+      if (opened.status === "skipped") {
+        return NextResponse.json(
+          {
+            error: `${opened.reason}. Until openEpoch runs, claims will fail with "epoch not open" on BSC Testnet`,
+          },
+          { status: 503 },
+        );
+      }
+      onChain = await readOnChainEpoch(epochId);
+    }
+
+    if (!onChain?.open) {
+      return NextResponse.json(
+        {
+          error:
+            "This day's reward pool is not opened on the payout contract yet. Add PAYOUT_OPERATOR_PRIVATE_KEY on the server or call openEpoch in Remix for this epochId",
+        },
+        { status: 503 },
+      );
+    }
+
+    const potWei = onChain.pot;
 
     const snapshot = await resolveSnapshotWinner(epochId, session);
     if (!snapshot || !isTopTwentyRank(snapshot.rank)) {
@@ -179,6 +229,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "Could not derive payout amount for your rank" },
         { status: 403 },
+      );
+    }
+
+    const remaining =
+      (await readEpochRemainingWei(epochId)) ??
+      onChain.pot - onChain.claimedSum;
+    if (amount > remaining) {
+      return NextResponse.json(
+        {
+          error: `This epoch only has ${remaining.toString()} wei left on-chain (${amount.toString()} wei requested for rank ${snapshot.rank}) — the contract pot may differ from the app record`,
+        },
+        { status: 503 },
       );
     }
 

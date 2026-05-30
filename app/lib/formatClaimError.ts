@@ -28,12 +28,35 @@ export function formatClaimError(err: unknown): string {
     return "This day's reward was already claimed — check the wallet you used when you claimed before (Claim history). Switching MetaMask does not pay the same day again.";
   }
 
+  if (/epoch not open/i.test(message)) {
+    return "This day's pool is not opened on the payout contract yet — wait for the daily snapshot or ask the operator to run openEpoch on BSC Testnet";
+  }
+
+  if (/bad signature/i.test(message)) {
+    return "Voucher signature rejected — SIGNER_PRIVATE_KEY on the server must match the signer address in your Remix contract";
+  }
+
+  if (/exceeds epoch pot/i.test(message)) {
+    return "Payout exceeds this day's funded pot on-chain — the operator may have opened the epoch with a smaller pot than the app expects";
+  }
+
+  if (/paused/i.test(message)) {
+    return "Payout contract is paused — contact the operator";
+  }
+
   if (/does not match your linked payout wallet/i.test(message)) {
     return message;
   }
 
   if (/execution reverted/i.test(message) || /revert/i.test(message)) {
-    return "Claim rejected by contract — check you are on BSC Testnet and using your linked wallet";
+    const detail = message
+      .replace(/^execution reverted:?\s*/i, "")
+      .replace(/^reverted:?\s*/i, "")
+      .trim();
+    if (detail && detail.length < 120 && !/^0x/i.test(detail)) {
+      return `Claim rejected: ${detail} — use BSC Testnet (chain 97) and your linked wallet`;
+    }
+    return "Claim rejected by contract — use BSC Testnet (chain 97), your linked wallet, and ensure today's epoch is opened on-chain";
   }
 
   if (message.length > 220) {
