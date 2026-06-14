@@ -14,17 +14,24 @@ import { fetchTweetById, getMatchPostAccount, matchPostUrl } from "@/lib/xApi";
 
 export type ResolveMatchPostOptions = {
   /**
-   * UI predict flow: trust Supabase tweet id without X lookup (0 extra calls).
-   * Cron/sync can set false to validate cache before collection.
+   * When true, use Supabase tweet id without X validation (UI only — saves API calls).
+   * Background jobs must use {@link CRON_MATCH_POST_OPTIONS} so stale ids are cleared.
    */
   trustCachedTweet?: boolean;
   /** Search pages when discovering — keep 1 for UI, 2 for background sync. */
   discoverMaxPages?: number;
 };
 
-const DEFAULT_UI_OPTIONS: ResolveMatchPostOptions = {
+/** Predict modal / match-post API — fast path, may use cached id. */
+export const UI_MATCH_POST_OPTIONS: ResolveMatchPostOptions = {
   trustCachedTweet: true,
   discoverMaxPages: 1,
+};
+
+/** Kickoff, sync, collection, scoring — always validate cache or re-discover. */
+export const CRON_MATCH_POST_OPTIONS: ResolveMatchPostOptions = {
+  trustCachedTweet: false,
+  discoverMaxPages: 2,
 };
 
 function fixtureTweetId(fixture: Fixture): string | null {
@@ -78,7 +85,7 @@ async function readTrustedCachedPost(
   return toMatchPost(storedTweetId, account, "database");
 }
 
-/** Validates cached id via X (1 API call). Only for cron when trust is disabled. */
+/** Validates cached id via X; clears Supabase cache when invalid. */
 async function readVerifiedCachedPost(
   fixture: Fixture,
   account: string,
@@ -88,10 +95,19 @@ async function readVerifiedCachedPost(
 
   try {
     const hit = await fetchTweetById(trusted.tweetId);
-    if (!hit) return null;
-    if (hit.authorUsername.toLowerCase() !== account.toLowerCase()) return null;
+    if (!hit) {
+      await clearMatchTweetId(fixture.id);
+      return null;
+    }
+    if (hit.authorUsername.toLowerCase() !== account.toLowerCase()) {
+      await clearMatchTweetId(fixture.id);
+      return null;
+    }
 
-    if (!tweetIsValidMatchPost(hit, fixture)) return null;
+    if (!tweetIsValidMatchPost(hit, fixture)) {
+      await clearMatchTweetId(fixture.id);
+      return null;
+    }
 
     return toMatchPost(trusted.tweetId, account, "database", hit.text);
   } catch {
@@ -101,11 +117,11 @@ async function readVerifiedCachedPost(
 
 export async function resolveMatchPost(
   fixture: Fixture,
-  options: ResolveMatchPostOptions = DEFAULT_UI_OPTIONS,
+  options: ResolveMatchPostOptions = CRON_MATCH_POST_OPTIONS,
 ): Promise<DiscoveredMatchPost | null> {
   const account = getMatchPostAccount();
-  const trustCached = options.trustCachedTweet ?? true;
-  const discoverMaxPages = options.discoverMaxPages ?? 1;
+  const trustCached = options.trustCachedTweet ?? false;
+  const discoverMaxPages = options.discoverMaxPages ?? 2;
 
   const manualTweetId = fixtureTweetId(fixture);
   if (manualTweetId) {
@@ -119,12 +135,6 @@ export async function resolveMatchPost(
   } else {
     const verified = await readVerifiedCachedPost(fixture, account);
     if (verified) return verified;
-
-    try {
-      await clearMatchTweetId(fixture.id);
-    } catch {
-      // Optional cache clear before re-discovery.
-    }
   }
 
   const discovered = await discoverMatchPost(fixture, discoverMaxPages);

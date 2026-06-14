@@ -3,6 +3,7 @@ config({ path: ".env.local" });
 
 import { FIXTURES, formatFixtureLabel, getFixtureById } from "../app/data/fixtures";
 import { getMatchState, isMatchScored, markMatchCollected } from "../app/lib/supabase";
+import { shouldMarkMatchCollected } from "../lib/collectionComplete";
 import { collectPredictionsForFixture } from "../lib/collectPredictions";
 import {
   filterFixturesForCollection,
@@ -48,7 +49,13 @@ async function main() {
 
     try {
       const result = await collectPredictionsForFixture(fixture);
-      await markMatchCollected(fixture.id);
+      if (shouldMarkMatchCollected(result)) {
+        await markMatchCollected(fixture.id);
+      } else {
+        console.log(
+          "  Not marking collected (0 replies — cron will retry; verify match tweet)",
+        );
+      }
       console.log(JSON.stringify(result, null, 2));
       console.log("");
     } catch (error) {

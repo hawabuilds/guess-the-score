@@ -6,6 +6,13 @@ export type LiveMatchData = {
   elapsed: number | null;
 };
 
+import {
+  extractLiveScores,
+  extractSettlementScores,
+  isTerminalMatchStatus,
+  type MatchScores,
+} from "@/lib/matchScoreSettlement";
+
 /** Normalized fixture row used by scoring + live UI. */
 export type FootballDataMatch = {
   id: number;
@@ -13,10 +20,7 @@ export type FootballDataMatch = {
   minute?: number | null;
   homeTeam: { name: string };
   awayTeam: { name: string };
-  score?: {
-    fullTime?: { home: number | null; away: number | null };
-    halfTime?: { home: number | null; away: number | null };
-  };
+  score?: MatchScores;
 };
 
 import {
@@ -53,6 +57,8 @@ type ApiSportsFixtureRow = {
   score: {
     fulltime: { home: number | null; away: number | null };
     halftime: { home: number | null; away: number | null };
+    extratime: { home: number | null; away: number | null } | null;
+    penalty: { home: number | null; away: number | null } | null;
   };
 };
 
@@ -163,10 +169,27 @@ function teamNamesMatch(apiName: string, fixtureName: string): boolean {
 
 function normalizeFixtureRow(row: ApiSportsFixtureRow): FootballDataMatch {
   const fulltime = row.score.fulltime;
-  const halftime = row.score.halftime;
-  const hasFulltime =
-    fulltime.home != null && fulltime.away != null;
-  const hasLiveGoals = row.goals.home != null && row.goals.away != null;
+  const extratime = row.score.extratime;
+  const penalty = row.score.penalty;
+
+  const score: MatchScores = {
+    goals:
+      row.goals.home != null && row.goals.away != null
+        ? { home: row.goals.home, away: row.goals.away }
+        : undefined,
+    fullTime:
+      fulltime.home != null && fulltime.away != null
+        ? { home: fulltime.home, away: fulltime.away }
+        : undefined,
+    extraTime:
+      extratime?.home != null && extratime?.away != null
+        ? { home: extratime.home, away: extratime.away }
+        : undefined,
+    penalty:
+      penalty?.home != null && penalty?.away != null
+        ? { home: penalty.home, away: penalty.away }
+        : undefined,
+  };
 
   return {
     id: row.fixture.id,
@@ -174,30 +197,8 @@ function normalizeFixtureRow(row: ApiSportsFixtureRow): FootballDataMatch {
     minute: row.fixture.status.elapsed,
     homeTeam: { name: row.teams.home.name },
     awayTeam: { name: row.teams.away.name },
-    score: {
-      fullTime: hasFulltime
-        ? { home: fulltime.home, away: fulltime.away }
-        : hasLiveGoals
-          ? { home: row.goals.home, away: row.goals.away }
-          : undefined,
-      halfTime:
-        halftime.home != null && halftime.away != null
-          ? { home: halftime.home, away: halftime.away }
-          : undefined,
-    },
+    score,
   };
-}
-
-function extractScores(match: FootballDataMatch): {
-  homeScore: number | null;
-  awayScore: number | null;
-} {
-  const fullTime = match.score?.fullTime;
-  if (fullTime?.home != null && fullTime?.away != null) {
-    return { homeScore: fullTime.home, awayScore: fullTime.away };
-  }
-
-  return { homeScore: null, awayScore: null };
 }
 
 /** Map api-football.com status.short to UI labels. */
@@ -226,7 +227,20 @@ function mapStatus(status: string): string {
 }
 
 export function mapMatchRow(match: FootballDataMatch): LiveMatchData {
-  const { homeScore, awayScore } = extractScores(match);
+  let homeScore: number | null = null;
+  let awayScore: number | null = null;
+
+  if (isTerminalMatchStatus(match.status)) {
+    const settled = extractSettlementScores(match.score);
+    if (settled) {
+      homeScore = settled.homeScore;
+      awayScore = settled.awayScore;
+    }
+  } else {
+    const live = extractLiveScores(match.score);
+    homeScore = live.homeScore;
+    awayScore = live.awayScore;
+  }
 
   return {
     externalFixtureId: match.id,
@@ -270,22 +284,22 @@ export async function fetchLiveMatch(
 
 export { ApiFootballBudgetError, getApiFootballQuota } from "./apiFootballCache";
 
-/** Resolve final score when api-football.com reports the match finished (FT). */
+/** Resolve final score when api-football.com reports the match finished (FT/AET/PEN). */
 export function resolveFinalScoreFromApiMatch(
   match: FootballDataMatch,
   kickoffMs: number,
   nowMs: number,
   minMinutesAfterKickoff: number,
 ): { homeScore: number; awayScore: number } | null {
-  if (!isFinishedStatus(mapStatus(match.status))) return null;
+  if (!isTerminalMatchStatus(match.status)) return null;
 
   const minutesSinceKickoff = (nowMs - kickoffMs) / 60_000;
   if (minutesSinceKickoff < minMinutesAfterKickoff) return null;
 
-  const { homeScore, awayScore } = extractScores(match);
-  if (homeScore === null || awayScore === null) return null;
+  const settled = extractSettlementScores(match.score);
+  if (!settled) return null;
 
-  return { homeScore, awayScore };
+  return settled;
 }
 
 export async function findExternalFixtureId(
@@ -314,7 +328,7 @@ export async function findExternalFixtureId(
 }
 
 export function isFinishedStatus(status: string): boolean {
-  return status === "FT" || status === "FINISHED";
+  return isTerminalMatchStatus(status) || status === "FINISHED";
 }
 
 /** True when api-football.com reports the match has kicked off or ended. */

@@ -6,7 +6,7 @@ const keys = FIXTURES.map((f) => fixtureCacheKey(f));
 
 assert.equal(new Set(ids).size, ids.length, "fixture ids must be unique");
 assert.equal(new Set(keys).size, keys.length, "fixture cache keys must be unique");
-assert.ok(FIXTURES.length >= 11, "expected slates for 2026-05-29 through 2026-05-31");
+assert.ok(FIXTURES.length === 2, "expected today test slate (2 friendlies)");
 assert.ok(
   FIXTURES.every((f) => f.id > 5),
   "must not reuse match ids 1–5 (prior days in Supabase)",
@@ -28,5 +28,12 @@ assert.deepEqual(
 );
 assert.equal(may31.find((f) => f.id === 13)?.home, "Poland");
 assert.equal(may31.find((f) => f.id === 16)?.away, "Panama");
+
+const jun01 = FIXTURES.filter((f) => f.date === "2026-06-01");
+assert.deepEqual(
+  jun01.map((f) => f.id).sort(),
+  [17, 18, 19],
+);
+assert.equal(jun01.find((f) => f.id === 19)?.home, "Türkiye");
 
 console.log("syncFixtureRegistry.test.ts: ok");

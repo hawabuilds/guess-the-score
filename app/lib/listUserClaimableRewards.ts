@@ -9,6 +9,18 @@ import { payoutAmountWei, rankToTierLabel } from "@/lib/payoutTiers";
 import { computeVoucherId } from "@/lib/payoutVoucher";
 import { resolveSnapshotWinner } from "@/lib/resolveSnapshotWinner";
 
+const ON_CHAIN_READ_TIMEOUT_MS = 8_000;
+
+async function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+): Promise<T | null> {
+  return Promise.race([
+    promise,
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), ms)),
+  ]);
+}
+
 type SessionLike = {
   user?: {
     id?: string | number;
@@ -64,11 +76,11 @@ export async function listUserClaimableRewards(
     const voucherId = computeVoucherId(epochId, snapshot.user_id);
     let claimed = false;
     if (payoutConfig) {
-      try {
-        claimed = await isVoucherClaimedOnChain(payoutConfig, voucherId);
-      } catch {
-        claimed = false;
-      }
+      const onChainClaimed = await withTimeout(
+        isVoucherClaimedOnChain(payoutConfig, voucherId),
+        ON_CHAIN_READ_TIMEOUT_MS,
+      );
+      claimed = onChainClaimed ?? false;
     }
 
     const { day, date } = formatEpochDayLabels(epochId);

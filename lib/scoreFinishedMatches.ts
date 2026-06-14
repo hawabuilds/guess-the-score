@@ -8,13 +8,10 @@ import {
 } from "@/app/data/fixtures";
 
 import {
-
   getMatchState,
-
+  isEffectivelyCollected,
   isMatchScored,
-
   scoreMatchPredictions,
-
 } from "@/app/lib/supabase";
 
 import {
@@ -34,13 +31,13 @@ import {
 } from "./apiFootball";
 
 import {
-
+  fixtureAutoSettlesFromApi,
+  WORLD_CUP_SCORE_POLL_EXTRA_MINUTES,
+} from "./fixtureAutoSettle";
+import {
   isScoreApiPollDue,
-
   SCORE_API_POLL_OFFSETS_MINUTES,
-
   SCORE_API_POLL_WINDOW_MINUTES,
-
 } from "./scoreApiSchedule";
 
 
@@ -134,8 +131,12 @@ export function isWithinScoreApiPollingPeriod(
   const elapsedMin = (now.getTime() - kickoffMs) / 60_000;
 
   const lastOffset = SCORE_API_POLL_OFFSETS_MINUTES.at(-1)!;
+  const tailMinutes =
+    SCORE_API_POLL_WINDOW_MINUTES +
+    30 +
+    (fixtureAutoSettlesFromApi(fixture) ? WORLD_CUP_SCORE_POLL_EXTRA_MINUTES : 0);
 
-  return elapsedMin < lastOffset + SCORE_API_POLL_WINDOW_MINUTES + 30;
+  return elapsedMin < lastOffset + tailMinutes;
 
 }
 
@@ -200,7 +201,11 @@ export async function getFixturesPendingAutoScore(
     const state = await getMatchState(fixture.id);
     const manualResult = fixtureFinalScore(fixture);
 
-    if (!state?.predictions_collected_at && !manualResult) continue;
+    const apiAutoSettle = fixtureAutoSettlesFromApi(fixture);
+    const collected = await isEffectivelyCollected(fixture.id);
+    if (!collected && !manualResult && !apiAutoSettle) {
+      continue;
+    }
 
     if (manualResult) {
       pending.push(fixture);

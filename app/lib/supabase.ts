@@ -261,6 +261,24 @@ export async function isMatchCollected(matchId: number): Promise<boolean> {
   return Boolean(state?.predictions_collected_at);
 }
 
+export async function countPredictionsForMatch(matchId: number): Promise<number> {
+  const supabase = getSupabaseClient();
+  const { count, error } = await supabase
+    .from("predictions")
+    .select("*", { count: "exact", head: true })
+    .eq("match_id", matchId);
+
+  if (error) throw new Error(error.message);
+  return count ?? 0;
+}
+
+/** True when collection finished and at least one prediction row exists. */
+export async function isEffectivelyCollected(matchId: number): Promise<boolean> {
+  const state = await getMatchState(matchId);
+  if (!state?.predictions_collected_at) return false;
+  return (await countPredictionsForMatch(matchId)) > 0;
+}
+
 export type ScoredPrediction = {
   user_id: string;
   user_handle: string;

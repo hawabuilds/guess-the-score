@@ -2,6 +2,7 @@ import { getSupabaseAdminClient } from "@/app/lib/supabase";
 import { getAvailableEpochPotWei } from "@/lib/payoutLiability";
 import {
   ensureEpochOpenedOnChain,
+  readOnChainEpoch,
   type EnsureEpochOpenResult,
 } from "@/lib/payoutOpenEpoch";
 import { syncPayoutEpochPotFromChain } from "@/lib/payoutEpochPot";
@@ -9,9 +10,15 @@ import { syncPayoutEpochPotFromChain } from "@/lib/payoutEpochPot";
 export type PayoutEpochRow = {
   epoch_id: number;
   pot_wei: string;
+  pot_usd_cents: number | null;
   finalized_at: string | null;
   created_at: string;
 };
+
+const PAYOUT_EPOCH_COLUMNS =
+  "epoch_id, pot_wei, pot_usd_cents, finalized_at, created_at" as const;
+const PAYOUT_EPOCH_COLUMNS_LEGACY =
+  "epoch_id, pot_wei, finalized_at, created_at" as const;
 
 export async function getPayoutEpoch(
   epochId: bigint,
@@ -19,17 +26,34 @@ export async function getPayoutEpoch(
   const supabase = getSupabaseAdminClient();
   const epochNumeric = Number(epochId);
 
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from("payout_epochs")
-    .select("epoch_id, pot_wei, finalized_at, created_at")
+    .select(PAYOUT_EPOCH_COLUMNS)
     .eq("epoch_id", epochNumeric)
     .maybeSingle();
+
+  if (
+    error?.message.includes("pot_usd_cents") &&
+    error.message.includes("does not exist")
+  ) {
+    ({ data, error } = await supabase
+      .from("payout_epochs")
+      .select(PAYOUT_EPOCH_COLUMNS_LEGACY)
+      .eq("epoch_id", epochNumeric)
+      .maybeSingle());
+  }
 
   if (error) {
     throw new Error(error.message);
   }
 
-  return (data as PayoutEpochRow | null) ?? null;
+  if (!data) return null;
+
+  const row = data as PayoutEpochRow & { pot_usd_cents?: number | null };
+  return {
+    ...row,
+    pot_usd_cents: row.pot_usd_cents ?? null,
+  };
 }
 
 export async function upsertPayoutEpochPot(
@@ -45,24 +69,25 @@ export async function upsertPayoutEpochPot(
     throw new Error(`Epoch ${epochNumeric} is already finalized`);
   }
 
-  const { data, error } = await supabase
-    .from("payout_epochs")
-    .upsert(
-      {
-        epoch_id: epochNumeric,
-        pot_wei: potWei.toString(),
-        ...(existing ? {} : { created_at: now }),
-      },
-      { onConflict: "epoch_id" },
-    )
-    .select("epoch_id, pot_wei, finalized_at, created_at")
-    .single();
+  const { error } = await supabase.from("payout_epochs").upsert(
+    {
+      epoch_id: epochNumeric,
+      pot_wei: potWei.toString(),
+      ...(existing ? {} : { created_at: now }),
+    },
+    { onConflict: "epoch_id" },
+  );
 
   if (error) {
     throw new Error(error.message);
   }
 
-  return data as PayoutEpochRow;
+  const row = await getPayoutEpoch(epochId);
+  if (!row) {
+    throw new Error(`Epoch ${epochNumeric} missing after upsert`);
+  }
+
+  return row;
 }
 
 /** Updates pot_wei to match on-chain openEpoch (even after finalize). */
@@ -85,6 +110,7 @@ export async function setPayoutEpochPotWei(
 
 export async function markPayoutEpochFinalized(
   epochId: bigint,
+  potUsdCents: number,
 ): Promise<void> {
   const supabase = getSupabaseAdminClient();
   const epochNumeric = Number(epochId);
@@ -92,7 +118,7 @@ export async function markPayoutEpochFinalized(
 
   const { error } = await supabase
     .from("payout_epochs")
-    .update({ finalized_at: now })
+    .update({ finalized_at: now, pot_usd_cents: potUsdCents })
     .eq("epoch_id", epochNumeric);
 
   if (error) {
@@ -149,6 +175,33 @@ export async function ensurePayoutEpochForSnapshot(
   }
 
   if (available.availablePotWei <= 0n) {
+    const onChain = await readOnChainEpoch(epochId);
+    const existingPot = existing ? parsePotWei(existing.pot_wei) : null;
+    if (existing && existingPot && onChain?.open && onChain.pot > 0n) {
+      let epoch = existing;
+      if (existingPot !== onChain.pot) {
+        await setPayoutEpochPotWei(epochId, onChain.pot);
+        epoch = { ...existing, pot_wei: onChain.pot.toString() };
+      }
+      const epochOpenOnChain: EnsureEpochOpenResult = {
+        status: "already_open",
+        pot: onChain.pot,
+      };
+      const potSync: EpochPotSyncMeta = {
+        contractBalanceWei: available.contractBalanceWei.toString(),
+        reservedLiabilityWei: available.reservedLiabilityWei.toString(),
+        totalReservedOnChainWei: available.totalReservedOnChainWei.toString(),
+        availablePotWei: available.availablePotWei.toString(),
+        epochOpenOnChain,
+      };
+      return {
+        epoch,
+        created: false,
+        potSyncedFromContract: existingPot !== onChain.pot,
+        potSync,
+      };
+    }
+
     const reservedOnChain = available.totalReservedOnChainWei.toString();
     const balance = available.contractBalanceWei.toString();
     return {

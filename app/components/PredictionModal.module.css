@@ -113,6 +113,12 @@
   color: var(--black);
 }
 
+.btnXIcon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
 .btnGreen {
   background: var(--green);
   color: var(--white);

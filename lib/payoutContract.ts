@@ -1,12 +1,15 @@
 import {
   createPublicClient,
   getAddress,
+  hashMessage,
   http,
+  recoverAddress,
   type Address,
   type Hex,
 } from "viem";
 import { bsc, bscTestnet } from "viem/chains";
 
+/** ScorePayout on BSC — voucher inner hash + EIP-191 prefix verified in `claim()`. */
 export const scorePayoutAbi = [
   {
     type: "function",
@@ -72,6 +75,20 @@ export const scorePayoutAbi = [
   },
   {
     type: "function",
+    name: "operator",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "address" }],
+  },
+  {
+    type: "function",
+    name: "paused",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    type: "function",
     name: "voucherUsed",
     stateMutability: "view",
     inputs: [{ name: "", type: "bytes32" }],
@@ -122,9 +139,12 @@ function chainForId(chainId: bigint) {
   return chainId === 97n ? bscTestnet : bsc;
 }
 
+const DEFAULT_BSC_RPC = "https://bsc-dataseed.binance.org/";
+const PAYOUT_RPC_TIMEOUT_MS = 10_000;
+
 function payoutRpcTransport() {
-  const url = process.env.PAYOUT_RPC_URL?.trim();
-  return http(url || undefined);
+  const url = process.env.PAYOUT_RPC_URL?.trim() || DEFAULT_BSC_RPC;
+  return http(url, { timeout: PAYOUT_RPC_TIMEOUT_MS, retryCount: 1 });
 }
 
 export function createPayoutPublicClient(config: PublicPayoutConfig) {
@@ -179,6 +199,43 @@ export async function readMaxOpenEpochPotWei(): Promise<{
     totalReserved,
     maxPot,
   };
+}
+
+export async function readContractOperatorAddress(): Promise<Address | null> {
+  const config = readPublicPayoutConfig();
+  if (!config) return null;
+
+  const client = createPayoutPublicClient(config);
+  return client.readContract({
+    address: config.contractAddress,
+    abi: scorePayoutAbi,
+    functionName: "operator",
+  });
+}
+
+export async function readContractPaused(): Promise<boolean | null> {
+  const config = readPublicPayoutConfig();
+  if (!config) return null;
+
+  const client = createPayoutPublicClient(config);
+  return client.readContract({
+    address: config.contractAddress,
+    abi: scorePayoutAbi,
+    functionName: "paused",
+  });
+}
+
+/** Matches ScorePayout._voucherDigest + viem signMessage({ raw: inner }). */
+export async function recoverVoucherSigner(
+  inner: Hex,
+  signature: Hex,
+): Promise<Address | null> {
+  try {
+    const digest = hashMessage({ raw: inner });
+    return await recoverAddress({ hash: digest, signature });
+  } catch {
+    return null;
+  }
 }
 
 export async function isVoucherClaimedOnChain(

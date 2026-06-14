@@ -5,9 +5,9 @@ import { useTranslations } from "next-intl";
 import { type MouseEvent, useEffect, useState } from "react";
 import {
   formatExampleScore,
-  formatFixtureModalSub,
   type Fixture,
 } from "../data/fixtures";
+import { FixtureKickoffModalSub } from "./FixtureKickoffDisplay";
 import { fetchMatchPost, type MatchPostResponse } from "../lib/match-post-client";
 import styles from "./PredictionModal.module.css";
 
@@ -74,7 +74,9 @@ export default function PredictionModal({
       <div className={styles.modalSheet}>
         <div className={styles.modalHandle} />
         <div className={styles.modalTitle}>{t("title")}</div>
-        <div className={styles.modalSub}>{formatFixtureModalSub(fixture)}</div>
+        <div className={styles.modalSub}>
+          <FixtureKickoffModalSub fixture={fixture} />
+        </div>
 
         <div className={styles.modalNote}>
           {t("replyUnder", { account: accountHandle })}{" "}
@@ -93,6 +95,9 @@ export default function PredictionModal({
             rel="noopener noreferrer"
           >
             {t("replyOnX")}
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden className={styles.btnXIcon}>
+              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.748l7.73-8.835L1.254 2.25H8.08l4.253 5.622 5.911-5.622z" />
+            </svg>
           </a>
         ) : (
           <div className={styles.modalNote}>

@@ -1,4 +1,7 @@
 import {
+  payoutNativeSymbol,
+} from "@/app/lib/payoutChainMeta";
+import {
   createPayoutPublicClient,
   readMaxOpenEpochPotWei,
   readPublicPayoutConfig,
@@ -29,9 +32,12 @@ function chainForId(chainId: bigint) {
   return chainId === 97n ? bscTestnet : bsc;
 }
 
+const DEFAULT_BSC_RPC = "https://bsc-dataseed.binance.org/";
+const PAYOUT_RPC_TIMEOUT_MS = 10_000;
+
 function payoutRpcTransport() {
-  const url = process.env.PAYOUT_RPC_URL?.trim();
-  return http(url || undefined);
+  const url = process.env.PAYOUT_RPC_URL?.trim() || DEFAULT_BSC_RPC;
+  return http(url, { timeout: PAYOUT_RPC_TIMEOUT_MS, retryCount: 1 });
 }
 
 function readOperatorPrivateKey(): Hex | null {
@@ -48,7 +54,7 @@ function readOperatorPrivateKey(): Hex | null {
 export function diagnosePayoutOperatorEnv(): string | null {
   const key = readOperatorPrivateKey();
   if (!key) {
-    return "PAYOUT_OPERATOR_PRIVATE_KEY is not set — the server cannot call openEpoch on the payout contract (add the operator wallet key in Vercel, same wallet you use in Remix)";
+    return "PAYOUT_OPERATOR_PRIVATE_KEY is not set — the server cannot call openEpoch on ScorePayout (must be the contract operator wallet; add key in Vercel)";
   }
   if (!readPublicPayoutConfig()) {
     return "Payout contract is not configured (PAYOUT_CONTRACT_ADDRESS + PAYOUT_CHAIN_ID)";
@@ -98,7 +104,7 @@ export async function readOnChainEpoch(
 }
 
 /**
- * Opens the epoch on ScorePayoutBNB_A with the given pot (operator tx).
+ * Opens the epoch on ScorePayout with the given pot (operator tx).
  * Idempotent when the epoch is already open with the same pot.
  */
 export async function ensureEpochOpenedOnChain(
@@ -114,6 +120,8 @@ export async function ensureEpochOpenedOnChain(
     return { status: "error", reason: "Epoch pot must be greater than zero" };
   }
 
+  const nativeSymbol = payoutNativeSymbol(Number(config.chainId));
+
   const funding = await readMaxOpenEpochPotWei();
   if (!funding) {
     return { status: "skipped", reason: "Payout contract not configured" };
@@ -124,7 +132,7 @@ export async function ensureEpochOpenedOnChain(
   if (potToOpen <= 0n) {
     return {
       status: "error",
-      reason: `Contract holds ${formatBnb(funding.balance)} tBNB with ${formatBnb(funding.totalReserved)} already reserved — no unreserved balance left for a new epoch`,
+      reason: `Contract holds ${formatBnb(funding.balance)} ${nativeSymbol} with ${formatBnb(funding.totalReserved)} already reserved — no unreserved balance left for a new epoch`,
     };
   }
 
@@ -135,7 +143,7 @@ export async function ensureEpochOpenedOnChain(
     }
     return {
       status: "error",
-      reason: `Epoch ${epochId} is already open on-chain with pot ${formatBnb(existing.pot)} tBNB, but the app expects ${formatBnb(potWei)} — openEpoch cannot change the pot; align funding or contact the operator`,
+      reason: `Epoch ${epochId} is already open on-chain with pot ${formatBnb(existing.pot)} ${nativeSymbol}, but the app expects ${formatBnb(potWei)} — openEpoch cannot change the pot; align funding or contact the operator`,
     };
   }
 
@@ -182,7 +190,7 @@ export async function ensureEpochOpenedOnChain(
     if (/insufficient BNB held/i.test(message)) {
       return {
         status: "error",
-        reason: `Contract cannot reserve ${formatBnb(potToOpen)} tBNB for this epoch — balance ${formatBnb(funding.balance)}, already reserved on-chain ${formatBnb(funding.totalReserved)} (max new pot ≈ ${formatBnb(funding.maxPot)} tBNB)`,
+        reason: `Contract cannot reserve ${formatBnb(potToOpen)} ${nativeSymbol} for this epoch — balance ${formatBnb(funding.balance)}, already reserved on-chain ${formatBnb(funding.totalReserved)} (max new pot ≈ ${formatBnb(funding.maxPot)} ${nativeSymbol})`,
       };
     }
     if (/epochId not increasing/i.test(message)) {

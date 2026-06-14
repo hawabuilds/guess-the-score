@@ -6,11 +6,11 @@ import {
   metaMaskWallet,
   walletConnectWallet,
 } from '@rainbow-me/rainbowkit/wallets';
-import { PAYOUT_CHAIN, PAYOUT_CHAIN_ID } from './lib/payoutConfig';
+import { PAYOUT_CHAIN, PAYOUT_CHAIN_ID, BSC_TESTNET_CHAIN_ID } from './lib/payoutConfig';
 import { http } from 'wagmi';
 
 const payoutTransport =
-  PAYOUT_CHAIN_ID === 97
+  PAYOUT_CHAIN_ID === BSC_TESTNET_CHAIN_ID
     ? http('https://data-seed-prebsc-1-s1.binance.org:8545')
     : http('https://bsc-dataseed.binance.org');
 

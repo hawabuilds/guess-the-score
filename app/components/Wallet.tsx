@@ -11,9 +11,11 @@ import {
   useDisconnect,
 } from "wagmi";
 import { useLinkPayoutWallet } from "../lib/useLinkPayoutWallet";
-import { signOutOfX } from "../lib/auth-client";
+import { formatPayoutWalletLinkError } from "../lib/formatPayoutWalletLinkError";
 import { PAYOUT_CHAIN, PAYOUT_CHAIN_ID } from "../lib/payoutConfig";
+import Link from "next/link";
 import { LAND_LOGO_SRC } from "./landing-assets/logo";
+import SocialLinks from "./SocialLinks";
 import AppTabBar from "./AppTabBar";
 import NavUserControl from "./NavUserControl";
 import styles from "./Wallet.module.css";
@@ -161,7 +163,10 @@ export default function Wallet({
               {linkStatus === "error" ? (
                 <div className={styles.linkErrorWrap} role="alert">
                   <p className={styles.linkError}>
-                    {linkError ?? t("payoutWalletLinkFailed")}
+                    {formatPayoutWalletLinkError(
+                      linkError,
+                      t("payoutWalletLinkFailed"),
+                    )}
                   </p>
                   {status === "authenticated" ? (
                     <button
@@ -197,23 +202,16 @@ export default function Wallet({
             </div>
           )}
 
-          {status === "authenticated" ? (
-            <button
-              type="button"
-              className={styles.btnGhost}
-              onClick={() => signOutOfX()}
-            >
-              {t("signOutOfX")}
-            </button>
-          ) : null}
+          <p className={styles.disclaimerLine}>
+            {t("disclaimerShort")}{" "}
+            <Link href="/disclaimer" className={styles.disclaimerLink}>
+              {t("disclaimerFullLink")}
+            </Link>
+          </p>
 
-          <button
-            type="button"
-            className={styles.walletSkip}
-            onClick={onGoToDashboard}
-          >
-            {t("skipForNow")}
-          </button>
+          <div className={styles.walletSocial}>
+            <SocialLinks variant="accent" />
+          </div>
         </div>
 
         <AppTabBar

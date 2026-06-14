@@ -15,13 +15,25 @@ export function hasSignedInWithXBefore(): boolean {
   return localStorage.getItem(HAS_SIGNED_IN_KEY) === "1";
 }
 
-export function signInWithX() {
-  return signIn("twitter", { callbackUrl: "/" });
+function resolveSignInCallbackUrl(explicit?: string): string {
+  if (explicit) return explicit;
+  if (typeof window !== "undefined") {
+    return `${window.location.pathname}${window.location.search}`;
+  }
+  return "/";
 }
 
-export async function signInWithXAfterSwitch() {
+export function signInWithX(callbackUrl?: string) {
+  return signIn("twitter", {
+    callbackUrl: resolveSignInCallbackUrl(callbackUrl),
+  });
+}
+
+export async function signInWithXAfterSwitch(callbackUrl?: string) {
   await signOut({ redirect: false });
-  return signIn("twitter", { callbackUrl: "/" });
+  return signIn("twitter", {
+    callbackUrl: resolveSignInCallbackUrl(callbackUrl),
+  });
 }
 
 export function signOutOfX() {

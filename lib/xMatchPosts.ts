@@ -4,6 +4,7 @@ import {
   getTeamAliases,
   normalizeForTeamMatch,
   textMentionsCuracaoVariant,
+  textMentionsTurkiyeVariant,
 } from "@/lib/predictionParser";
 import {
   getMatchPostAccount,
@@ -27,6 +28,13 @@ function escapeRegExp(value: string): string {
 /** Whole-word / phrase match — avoids "Iran" matching "Iranian", etc. */
 export function tweetMentionsTeam(text: string, team: string): boolean {
   if (team === "Curaçao" && textMentionsCuracaoVariant(text)) {
+    return true;
+  }
+
+  if (
+    (team === "Türkiye" || normalizeForTeamMatch(team) === "turkiye") &&
+    textMentionsTurkiyeVariant(text)
+  ) {
     return true;
   }
 
@@ -140,6 +148,11 @@ function buildSearchQueries(
 
   // Curaçao is often indexed as Cura??ao — AND queries miss the post; home-only still works.
   if (fixture.away === "Curaçao") {
+    return [homeOnly, bothTeams];
+  }
+
+  // Türkiye / Turkey / Turkiye — prefer home-only search when Türkiye is home.
+  if (fixture.home === "Türkiye") {
     return [homeOnly, bothTeams];
   }
 

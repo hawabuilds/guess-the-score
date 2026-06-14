@@ -17,6 +17,7 @@ const MATCH = { home: "Saint-Étienne", away: "Nice" };
 const BOSNIA_MATCH = FIXTURES.find((f) => f.id === 10)!;
 const UCL_FINAL = FIXTURES.find((f) => f.id === 12)!;
 const SCOTLAND_MATCH = FIXTURES.find((f) => f.id === 11)!;
+const TURKIYE_MATCH = FIXTURES.find((f) => f.id === 19)!;
 
 const CASES: TestCase[] = [
   {
@@ -30,6 +31,24 @@ const CASES: TestCase[] = [
     reply: "St Etienne 2-1 Nice",
     fixture: MATCH,
     expected: { homeScore: 2, awayScore: 1 },
+  },
+  {
+    name: "valid: Türkiye with umlaut",
+    reply: "Türkiye 2-1 North Macedonia",
+    fixture: TURKIYE_MATCH,
+    expected: { homeScore: 2, awayScore: 1 },
+  },
+  {
+    name: "valid: Turkiye ASCII u",
+    reply: "Turkiye 1-0 FYR Macedonia",
+    fixture: TURKIYE_MATCH,
+    expected: { homeScore: 1, awayScore: 0 },
+  },
+  {
+    name: "valid: Turkey alias",
+    reply: "Turkey 3-2 Macedonia",
+    fixture: TURKIYE_MATCH,
+    expected: { homeScore: 3, awayScore: 2 },
   },
   {
     name: "valid: Saint-Etienne without accent",

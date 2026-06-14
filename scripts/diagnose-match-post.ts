@@ -7,7 +7,11 @@ config({ path: ".env.local" });
 
 import { getFixtureById } from "../app/data/fixtures";
 import { getMatchState, getStoredMatchTweetId } from "../app/lib/supabase";
-import { resolveMatchPost } from "../lib/resolveMatchTweet";
+import {
+  CRON_MATCH_POST_OPTIONS,
+  resolveMatchPost,
+  UI_MATCH_POST_OPTIONS,
+} from "../lib/resolveMatchTweet";
 import {
   discoverMatchPost,
   pickBestTweet,
@@ -63,11 +67,11 @@ async function main() {
   }
 
   console.log("\n--- resolve (UI: trust cache, 1 page) ---");
-  const ui = await resolveMatchPost(fixture, {
-    trustCachedTweet: true,
-    discoverMaxPages: 1,
-  });
-  console.log(ui);
+  const ui = await resolveMatchPost(fixture, UI_MATCH_POST_OPTIONS);
+  console.log("UI options:", ui);
+
+  const cron = await resolveMatchPost(fixture, CRON_MATCH_POST_OPTIONS);
+  console.log("CRON options:", cron);
 
   console.log("\n--- discover only (2 pages) ---");
   const disc = await discoverMatchPost(fixture, 2);

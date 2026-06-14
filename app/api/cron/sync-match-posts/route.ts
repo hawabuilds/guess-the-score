@@ -1,12 +1,10 @@
 import {
   FIXTURES,
-  fixtureCacheKey,
   fixtureDateTime,
   getActiveFixtures,
 } from "@/app/data/fixtures";
-import { getMatchState, getStoredMatchTweetId } from "@/app/lib/supabase";
 import { isCronAuthorized } from "@/lib/cronAuth";
-import { resolveMatchPost } from "@/lib/resolveMatchTweet";
+import { CRON_MATCH_POST_OPTIONS, resolveMatchPost } from "@/lib/resolveMatchTweet";
 import {
   registryGap,
   syncFixtureRegistryToSupabase,
@@ -14,20 +12,6 @@ import {
 import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
-
-async function hasCachedMatchPost(
-  fixture: (typeof FIXTURES)[number],
-): Promise<boolean> {
-  if (fixture.tweetId?.trim()) return true;
-
-  const storedId = await getStoredMatchTweetId(fixture.id);
-  if (!storedId) return false;
-
-  const state = await getMatchState(fixture.id);
-  const expectedKey = fixtureCacheKey(fixture);
-  if (!state?.match_fixture_key) return true;
-  return state.match_fixture_key === expectedKey;
-}
 
 export async function GET(request: NextRequest) {
   if (!isCronAuthorized(request)) {
@@ -48,22 +32,7 @@ export async function GET(request: NextRequest) {
 
   for (const fixture of upcoming) {
     try {
-      if (await hasCachedMatchPost(fixture)) {
-        results.push({
-          matchId: fixture.id,
-          fixture: `${fixture.home} vs ${fixture.away}`,
-          found: true,
-          tweetId: fixture.tweetId ?? (await getStoredMatchTweetId(fixture.id)),
-          source: "cached",
-          skippedApi: true,
-        });
-        continue;
-      }
-
-      const post = await resolveMatchPost(fixture, {
-        trustCachedTweet: false,
-        discoverMaxPages: 2,
-      });
+      const post = await resolveMatchPost(fixture, CRON_MATCH_POST_OPTIONS);
       results.push({
         matchId: fixture.id,
         fixture: `${fixture.home} vs ${fixture.away}`,

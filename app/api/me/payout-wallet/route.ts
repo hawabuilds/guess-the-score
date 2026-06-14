@@ -1,5 +1,5 @@
 import { auth } from "@/auth";
-import { resolveCanonicalUserId } from "@/app/lib/resolveCanonicalUserId";
+import { resolveWalletUserId } from "@/app/lib/resolveCanonicalUserId";
 import { getUserWallet } from "@/app/lib/userWallets";
 import { NextResponse } from "next/server";
 
@@ -12,12 +12,9 @@ export async function GET() {
   }
 
   try {
-    const userId = await resolveCanonicalUserId(session);
+    const userId = await resolveWalletUserId(session);
     if (!userId) {
-      return NextResponse.json(
-        { error: "Could not resolve your player account" },
-        { status: 401 },
-      );
+      return NextResponse.json({ linkedWallet: null, updatedAt: null });
     }
 
     const row = await getUserWallet(userId);

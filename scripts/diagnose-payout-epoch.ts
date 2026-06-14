@@ -9,6 +9,7 @@ import { epochIdForDate } from "../lib/epochId";
 import {
   readMaxOpenEpochPotWei,
   readPublicPayoutConfig,
+  readContractOperatorAddress,
 } from "../lib/payoutContract";
 import { getAvailableEpochPotWei } from "../lib/payoutLiability";
 import { getSupabaseAdminClient } from "../app/lib/supabase";
@@ -80,7 +81,19 @@ async function main() {
   const opKey =
     process.env.PAYOUT_OPERATOR_PRIVATE_KEY?.trim() ||
     process.env.OPERATOR_PRIVATE_KEY?.trim();
-  console.log("PAYOUT_OPERATOR_PRIVATE_KEY", opKey ? "(set)" : "(missing)");
+  const operator = await readContractOperatorAddress();
+  console.log("contract operator", operator ?? "n/a");
+  if (opKey && operator) {
+    const pk = (opKey.startsWith("0x") ? opKey : `0x${opKey}`) as Hex;
+    const serverOp = privateKeyToAccount(pk).address;
+    console.log("PAYOUT_OPERATOR_PRIVATE_KEY address", serverOp);
+    console.log(
+      "operator match",
+      serverOp.toLowerCase() === operator.toLowerCase(),
+    );
+  } else {
+    console.log("PAYOUT_OPERATOR_PRIVATE_KEY", opKey ? "(set)" : "(missing)");
+  }
 }
 
 main().catch((e) => {

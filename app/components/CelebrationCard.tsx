@@ -16,11 +16,10 @@ import { createPortal } from "react-dom";
 import { bnbStr, usd } from "../data/rewards";
 import { sessionUserIdentity } from "../lib/auth-client";
 import { translateTierLabel } from "../lib/i18n-tiers";
+import { SHARE_CARD_LOGO_SRC } from "./dashboard-assets/share-card-logo";
 import { TROPHY_SRC } from "./dashboard-assets/trophy";
+import { resolveShareAvatarDataUrl } from "../lib/shareCardImages";
 import styles from "./CelebrationCard.module.css";
-
-/** Transparent RGBA PNG — same asset as Landing/Wallet logo (public/score-logo.png). */
-const SHARE_CARD_LOGO_SRC = "/score-logo.png";
 const SHARE_CARD_LOGO_HEIGHT = 45;
 const SHARE_CARD_LOGO_WIDTH = 63;
 
@@ -52,11 +51,15 @@ type ConfettiPiece = {
   opacity: string;
 };
 
+type ShareFallbackDetail = {
+  imageCopied: boolean;
+};
+
 type CelebrationCardProps = {
   open: boolean;
   data: ShareCardData | null;
   onClose: () => void;
-  onShareFallback?: () => void;
+  onShareFallback?: (detail: ShareFallbackDetail) => void;
 };
 
 function XIcon() {
@@ -68,7 +71,7 @@ function XIcon() {
 }
 
 function generateConfetti(): ConfettiPiece[] {
-  const colors = ["#2E9E3E", "#F4C753", "#FFFFFF", "#5fcf6f"];
+  const colors = ["#0066FF", "#3388FF", "#FFFFFF", "#3B82F6"];
   return Array.from({ length: 18 }, (_, i) => ({
     left: `${Math.random() * 100}%`,
     top: `${Math.random() * 55}%`,
@@ -76,10 +79,6 @@ function generateConfetti(): ConfettiPiece[] {
     transform: `rotate(${Math.random() * 360}deg)`,
     opacity: (0.5 + Math.random() * 0.45).toFixed(2),
   }));
-}
-
-function avatarProxyUrl(imageUrl: string): string {
-  return `/api/avatar?url=${encodeURIComponent(imageUrl)}`;
 }
 
 const CAPTURE_OPTS = {
@@ -137,7 +136,7 @@ async function waitForCardImages(card: HTMLElement): Promise<void> {
       complete: logo.complete,
       naturalWidth: logo.naturalWidth,
     });
-    logo.src = `${SHARE_CARD_LOGO_SRC}?retry=${Date.now()}`;
+    logo.src = SHARE_CARD_LOGO_SRC;
     await waitForImageLoaded(logo);
   }
 
@@ -191,18 +190,6 @@ async function isBlobNonBlank(blob: Blob): Promise<boolean> {
   }
 }
 
-function blobToDataUrl(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      if (typeof reader.result === "string") resolve(reader.result);
-      else reject(new Error("Failed to read capture"));
-    };
-    reader.onerror = () => reject(reader.error ?? new Error("Failed to read capture"));
-    reader.readAsDataURL(blob);
-  });
-}
-
 export default function CelebrationCard({
   open,
   data,
@@ -220,34 +207,37 @@ export default function CelebrationCard({
     session?.user?.username,
   );
   const profileImage = session?.user?.image ?? null;
-  const avatarSrc = useMemo(
-    () => (profileImage ? avatarProxyUrl(profileImage) : null),
-    [profileImage],
-  );
   const cardRef = useRef<HTMLDivElement>(null);
   const avRef = useRef<HTMLDivElement>(null);
   const capturedBlobRef = useRef<Blob | null>(null);
-  const [showLiveCard, setShowLiveCard] = useState(true);
-  const [snapshotUrl, setSnapshotUrl] = useState<string | null>(null);
-  const [avatarFailed, setAvatarFailed] = useState(false);
+  const [avatarDataUrl, setAvatarDataUrl] = useState<string | null>(null);
+  const avatarReadyRef = useRef<Promise<void>>(Promise.resolve());
   const [preparingCapture, setPreparingCapture] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const lastShareRef = useRef<ShareCardData | null>(null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
   useEffect(() => {
-    setAvatarFailed(false);
-  }, [avatarSrc]);
+    if (!open) {
+      setAvatarDataUrl(null);
+      avatarReadyRef.current = Promise.resolve();
+      return;
+    }
 
-  useEffect(() => {
-    if (!open) return;
-    const img = new Image();
-    img.src = SHARE_CARD_LOGO_SRC;
-    void waitForImageLoaded(img);
-  }, [open]);
+    let cancelled = false;
+    avatarReadyRef.current = resolveShareAvatarDataUrl(
+      profileImage,
+      user.username,
+    ).then((dataUrl) => {
+      if (!cancelled) setAvatarDataUrl(dataUrl);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, profileImage, user.username]);
 
   const confetti = useMemo(
     () => (open && data ? generateConfetti() : []),
@@ -260,26 +250,9 @@ export default function CelebrationCard({
       : data.day
     : "";
 
-  const buildTweetText = useCallback(
-    (shareData: ShareCardData | null) => {
-      const amount = shareData?.bnb
-        ? t("tweetAmount", {
-            bnb: bnbStr(shareData.bnb),
-            usd: usd(shareData.bnb),
-          })
-        : null;
-      return amount ? t("tweetWon", { amount }) : t("tweetWonFallback");
-    },
-    [t],
-  );
-
   const captureCardBlob = useCallback(async (): Promise<Blob | null> => {
     const card = cardRef.current;
     if (!card) return null;
-
-    const hiddenClass = styles.hidden;
-    const wasHidden = card.classList.contains(hiddenClass);
-    if (wasHidden) card.classList.remove(hiddenClass);
 
     try {
       await waitForCardImages(card);
@@ -293,22 +266,11 @@ export default function CelebrationCard({
     } catch (err) {
       console.warn("[share] capture failed:", err);
       return null;
-    } finally {
-      if (wasHidden) card.classList.add(hiddenClass);
     }
   }, []);
 
-  const applySuccessfulCapture = useCallback(async (blob: Blob) => {
+  const applySuccessfulCapture = useCallback((blob: Blob) => {
     capturedBlobRef.current = blob;
-    try {
-      const dataUrl = await blobToDataUrl(blob);
-      setSnapshotUrl(dataUrl);
-      setShowLiveCard(false);
-    } catch (err) {
-      console.warn("[share] snapshot read failed:", err);
-      capturedBlobRef.current = blob;
-      setShowLiveCard(true);
-    }
   }, []);
 
   useEffect(() => {
@@ -341,10 +303,6 @@ export default function CelebrationCard({
   useEffect(() => {
     if (!open || !data) return;
 
-    lastShareRef.current = data;
-    setShowLiveCard(true);
-    setSnapshotUrl(null);
-    setAvatarFailed(false);
     capturedBlobRef.current = null;
 
     let cancelled = false;
@@ -352,6 +310,7 @@ export default function CelebrationCard({
     void (async () => {
       setPreparingCapture(true);
       try {
+        await withTimeout(avatarReadyRef.current, IMAGE_WAIT_MS);
         await waitNextFrames();
         const blob = await captureCardBlob();
         if (cancelled || !blob) return;
@@ -366,17 +325,7 @@ export default function CelebrationCard({
     return () => {
       cancelled = true;
     };
-  }, [open, data, captureCardBlob, applySuccessfulCapture, avatarSrc]);
-
-  const handleLogoLoad = () => {
-    console.log("[share] logo loaded", { src: SHARE_CARD_LOGO_SRC });
-  };
-
-  const handleLogoError = () => {
-    console.warn("[share] logo image failed to load", {
-      src: SHARE_CARD_LOGO_SRC,
-    });
-  };
+  }, [open, data, captureCardBlob, applySuccessfulCapture]);
 
   const handleBackdropClick = (e: MouseEvent<HTMLDivElement>) => {
     if (e.target === e.currentTarget) {
@@ -384,9 +333,25 @@ export default function CelebrationCard({
     }
   };
 
+  const shareTweetText = t("shareTweetText");
+
   const openXIntent = () => {
-    const text = encodeURIComponent(buildTweetText(lastShareRef.current));
-    window.open(`https://twitter.com/intent/tweet?text=${text}`, "_blank");
+    const url = new URL("https://twitter.com/intent/tweet");
+    url.searchParams.set("text", shareTweetText);
+    window.open(url.toString(), "_blank", "noopener,noreferrer");
+  };
+
+  const copyImageToClipboard = async (blob: Blob): Promise<boolean> => {
+    if (!navigator.clipboard?.write) return false;
+
+    try {
+      await navigator.clipboard.write([
+        new ClipboardItem({ "image/png": blob }),
+      ]);
+      return true;
+    } catch {
+      return false;
+    }
   };
 
   const postToX = async () => {
@@ -398,25 +363,30 @@ export default function CelebrationCard({
         if (blob) await applySuccessfulCapture(blob);
       }
 
-      if (blob && navigator.canShare) {
-        const file = new File([blob], "guess-the-score-win.png", {
+      if (blob && typeof navigator.share === "function") {
+        const file = new File([blob], "guessthescore-win.png", {
           type: "image/png",
         });
-        if (navigator.canShare({ files: [file] })) {
-          try {
-            await navigator.share({
-              files: [file],
-              text: buildTweetText(lastShareRef.current),
-            });
+        const shareData = { text: shareTweetText, files: [file] };
+
+        try {
+          if (!navigator.canShare || navigator.canShare(shareData)) {
+            await navigator.share(shareData);
             return;
-          } catch (err) {
-            if (err instanceof Error && err.name === "AbortError") return;
           }
+
+          if (navigator.canShare({ files: [file] })) {
+            await navigator.share({ text: shareTweetText, files: [file] });
+            return;
+          }
+        } catch (err) {
+          if (err instanceof Error && err.name === "AbortError") return;
         }
       }
 
+      const imageCopied = blob ? await copyImageToClipboard(blob) : false;
       openXIntent();
-      onShareFallback?.();
+      onShareFallback?.({ imageCopied });
     } finally {
       setPreparingCapture(false);
     }
@@ -437,7 +407,7 @@ export default function CelebrationCard({
         <div
           ref={cardRef}
           id="share-card"
-          className={`${styles.shareCard}${showLiveCard ? "" : ` ${styles.hidden}`}`}
+          className={styles.shareCard}
         >
           <div className={styles.shareAtmos} id="share-atmos">
             <div className={`${styles.beam} ${styles.beamL}`} />
@@ -467,8 +437,6 @@ export default function CelebrationCard({
                 width={SHARE_CARD_LOGO_WIDTH}
                 height={SHARE_CARD_LOGO_HEIGHT}
                 decoding="sync"
-                onLoad={handleLogoLoad}
-                onError={handleLogoError}
               />
               <div className={styles.shareBrand}>{tc("scoreBrand")}</div>
             </div>
@@ -485,15 +453,9 @@ export default function CelebrationCard({
 
             <div className={styles.shareUser}>
               <div ref={avRef} className={styles.shareAv} id="share-av">
-                {avatarSrc && !avatarFailed ? (
+                {avatarDataUrl ? (
                   /* eslint-disable-next-line @next/next/no-img-element */
-                  <img
-                    src={avatarSrc}
-                    alt={user.initials}
-                    referrerPolicy="no-referrer"
-                    crossOrigin="anonymous"
-                    onError={() => setAvatarFailed(true)}
-                  />
+                  <img src={avatarDataUrl} alt={user.initials} />
                 ) : (
                   user.initials
                 )}
@@ -524,19 +486,6 @@ export default function CelebrationCard({
             <div className={styles.shareTag}>{t("tagline")}</div>
           </div>
         </div>
-
-        {snapshotUrl ? (
-          /* eslint-disable-next-line @next/next/no-img-element */
-          <img
-            className={styles.shareCardImg}
-            src={snapshotUrl}
-            alt={t("snapshotAlt")}
-          />
-        ) : null}
-
-        {snapshotUrl ? (
-          <div className={styles.shareHint}>{t("saveHint")}</div>
-        ) : null}
 
         <div className={styles.shareActions}>
           <button

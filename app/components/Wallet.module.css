@@ -142,18 +142,29 @@
   cursor: not-allowed;
 }
 
-.walletSkip {
+.walletSocial {
+  display: flex;
+  justify-content: center;
+  padding: 0 24px 12px;
+}
+
+.disclaimerLine {
   text-align: center;
-  padding: 18px;
-  font-size: 13px;
+  padding: 20px 24px 12px;
+  font-size: 11px;
+  line-height: 1.5;
   color: var(--w3);
-  cursor: pointer;
+}
+
+.disclaimerLink {
+  color: var(--w3);
   text-decoration: underline;
   text-underline-offset: 3px;
-  background: none;
-  border: none;
-  width: 100%;
-  font-family: var(--font-figtree), "Figtree", sans-serif;
+  transition: color 0.15s ease;
+}
+
+.disclaimerLink:hover {
+  color: var(--green);
 }
 
 .walletConnected {
@@ -282,11 +293,16 @@
   background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 8px;
-  color: var(--w1);
+  color: var(--white);
   font-size: 13px;
   font-weight: 600;
   padding: 8px 14px;
   cursor: pointer;
+  font-family: var(--font-figtree), "Figtree", sans-serif;
+}
+
+.linkRetry:hover {
+  border-color: rgba(255, 255, 255, 0.35);
 }
 
 .btnGhost {

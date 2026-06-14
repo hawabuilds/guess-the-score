@@ -1,16 +1,21 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { DM_Mono, Figtree } from "next/font/google";
 import { hasSignedInWithXBefore, signInWithX } from "../lib/auth-client";
 import {
-  getUpcomingFixtures,
-  formatFixtureLabel,
-  formatKickoffUtc,
+  getLandingUpcomingFixtures,
 } from "../data/fixtures";
+import {
+  fetchSiteStats,
+  formatLandingPlayers,
+  formatLandingPrizePool,
+} from "../lib/site-stats-client";
 import { LAND_LOGO_SRC } from "./landing-assets/logo";
 import { TeamFlag } from "./MatchFlags";
+import { FixtureKickoffTime } from "./FixtureKickoffDisplay";
+import SiteFooter from "./SiteFooter";
 import LanguageToggle from "./LanguageToggle";
 import SwitchXAccountModal from "./SwitchXAccountModal";
 import styles from "./Landing.module.css";
@@ -44,12 +49,8 @@ export default function Landing() {
   const t = useTranslations("landing");
   const tc = useTranslations("common");
   const [switchModalOpen, setSwitchModalOpen] = useState(false);
-
-  const stats = [
-    { value: t("statPlayersValue"), key: t("statPlayers") },
-    { value: t("statPrizePoolValue"), key: t("statPrizePool") },
-    { value: t("statPayoutValue"), key: t("statPayout") },
-  ] as const;
+  const [totalPlayers, setTotalPlayers] = useState<number | null>(null);
+  const [prizePoolUsd, setPrizePoolUsd] = useState<string | null>(null);
 
   const [now, setNow] = useState(() => new Date());
 
@@ -58,7 +59,47 @@ export default function Landing() {
     return () => window.clearInterval(id);
   }, []);
 
-  const upcomingFixtures = getUpcomingFixtures(undefined, now);
+  useEffect(() => {
+    let cancelled = false;
+
+    void fetchSiteStats()
+      .then((stats) => {
+        if (cancelled) return;
+        setTotalPlayers(stats.totalPlayers);
+        setPrizePoolUsd(formatLandingPrizePool(stats));
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setTotalPlayers(null);
+          setPrizePoolUsd(null);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const upcomingFixtures = getLandingUpcomingFixtures(undefined, now);
+
+  const stats = useMemo(
+    () =>
+      [
+        {
+          value:
+            totalPlayers != null
+              ? formatLandingPlayers(totalPlayers)
+              : tc("emDash"),
+          key: t("statPlayers"),
+        },
+        {
+          value: prizePoolUsd ?? tc("emDash"),
+          key: t("statPrizePool"),
+        },
+        { value: t("statPayoutValue"), key: t("statPayout") },
+      ] as const,
+    [totalPlayers, prizePoolUsd, t, tc],
+  );
 
   const handleSignIn = () => {
     if (hasSignedInWithXBefore()) {
@@ -113,31 +154,46 @@ export default function Landing() {
                 ) : (
                   upcomingFixtures.map((fixture) => (
                     <div key={fixture.id} className={styles.matchRow}>
-                      <div className={styles.matchFlagPair}>
-                        <TeamFlag team={fixture.home} className={styles.flag} />
-                        <TeamFlag team={fixture.away} className={styles.flag} />
-                      </div>
-                      <div className={styles.matchName}>
-                        {formatFixtureLabel(fixture)}
+                      <div className={styles.matchTeams}>
+                        <span className={styles.matchSide}>
+                          <TeamFlag
+                            team={fixture.home}
+                            className={styles.flag}
+                            width={22}
+                            height={15}
+                          />
+                          <span className={styles.teamName}>{fixture.home}</span>
+                        </span>
+                        <span className={styles.matchVs}>{tc("versusShort")}</span>
+                        <span className={styles.matchSide}>
+                          <TeamFlag
+                            team={fixture.away}
+                            className={styles.flag}
+                            width={22}
+                            height={15}
+                          />
+                          <span className={styles.teamName}>{fixture.away}</span>
+                        </span>
                       </div>
                       <div className={styles.matchTime}>
-                        {formatKickoffUtc(fixture)}
+                        <FixtureKickoffTime fixture={fixture} />
                       </div>
                     </div>
                   ))
                 )}
               </div>
             </section>
-
-            <div className={styles.statsStrip}>
-              {stats.map((stat) => (
-                <div key={stat.key} className={styles.statBlock}>
-                  <span className={styles.statVal}>{stat.value}</span>
-                  <span className={styles.statKey}>{stat.key}</span>
-                </div>
-              ))}
-            </div>
           </div>
+
+          <div className={styles.statsStrip}>
+            {stats.map((stat) => (
+              <div key={stat.key} className={styles.statBlock}>
+                <span className={styles.statVal}>{stat.value}</span>
+                <span className={styles.statKey}>{stat.key}</span>
+              </div>
+            ))}
+          </div>
+          <SiteFooter />
         </div>
       </div>
 

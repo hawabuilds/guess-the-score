@@ -6,6 +6,7 @@ import {
 } from "./xMatchPosts";
 
 const scotland = getFixtureById(11)!;
+const turkiye = getFixtureById(19)!;
 
 assert.ok(
   tweetMentionsTeam("Scotland vs Curacao — predict now", "Scotland"),
@@ -28,6 +29,22 @@ assert.ok(
     scotland,
   ),
   "X API corrupted Curaçao spelling",
+);
+
+assert.ok(
+  tweetMentionsTeam("🇹🇷 Türkiye vs North Macedonia — reply with your score", "Türkiye"),
+  "Türkiye with umlaut in match post",
+);
+assert.ok(
+  tweetMentionsTeam("Turkey vs Macedonia friendly", "Türkiye"),
+  "Turkey alias in match post",
+);
+assert.ok(
+  tweetMatchesFixture(
+    "Türkiye 🇹🇷 vs North Macedonia\nFormat: Turkiye 2 - 1 North Macedonia",
+    turkiye,
+  ),
+  "full Türkiye fixture tweet",
 );
 
 console.log("xMatchPosts.test.ts: ok");

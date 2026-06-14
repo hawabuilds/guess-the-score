@@ -8,7 +8,13 @@ import {
   parsePotWei,
 } from "@/app/lib/payoutEpochs";
 import { getLeaderboard } from "@/app/lib/supabase";
-import { epochIdForDate } from "@/lib/epochId";
+import {
+  epochIdForDate,
+  getFirstSnapshotEpochId,
+  isBeforeFirstSnapshotEpoch,
+} from "@/lib/epochId";
+import { fetchBnbUsdPrice } from "@/lib/bnbUsdPrice";
+import { potUsdCentsFromWei } from "@/lib/potUsd";
 import { isTopTwentyRank } from "@/lib/payoutTiers";
 
 export type SnapshotEpochResult =
@@ -18,6 +24,8 @@ export type SnapshotEpochResult =
       epochId: string;
       rows: number;
       potWei: string;
+      potUsdCents: number;
+      bnbUsdAtSnapshot: number;
       finalizedAt: string;
       epochAutoCreated?: boolean;
       potSyncedFromContract?: boolean;
@@ -32,11 +40,32 @@ export async function snapshotEpochLeaderboard(
   const epochId = epochIdForDate(now);
   const epochKey = epochId.toString();
 
+  if (isBeforeFirstSnapshotEpoch(epochId)) {
+    const first = getFirstSnapshotEpochId()!.toString();
+    return {
+      status: "skipped",
+      reason: `First snapshot is scheduled for epoch ${first} (12:00 UTC that day)`,
+      epochId: epochKey,
+    };
+  }
+
   const existingRows = await countSnapshotRows(epochId);
   if (existingRows > 0) {
     return {
       status: "skipped",
       reason: "Snapshot already exists for this epoch",
+      epochId: epochKey,
+    };
+  }
+
+  const topTwenty = (await getLeaderboard(20)).filter((entry) =>
+    isTopTwentyRank(entry.rank),
+  );
+
+  if (topTwenty.length === 0) {
+    return {
+      status: "skipped",
+      reason: "No scored players on leaderboard yet",
       epochId: epochKey,
     };
   }
@@ -72,18 +101,6 @@ export async function snapshotEpochLeaderboard(
     };
   }
 
-  const topTwenty = (await getLeaderboard(20)).filter((entry) =>
-    isTopTwentyRank(entry.rank),
-  );
-
-  if (topTwenty.length === 0) {
-    return {
-      status: "skipped",
-      reason: "No scored players on leaderboard yet",
-      epochId: epochKey,
-    };
-  }
-
   const epochOpen = potSync?.epochOpenOnChain;
   if (
     epochOpen &&
@@ -98,13 +115,17 @@ export async function snapshotEpochLeaderboard(
   }
 
   const rows = await insertLeaderboardSnapshot(epochId, topTwenty);
-  await markPayoutEpochFinalized(epochId);
+  const bnbUsdAtSnapshot = await fetchBnbUsdPrice();
+  const potUsdCents = potUsdCentsFromWei(potWei, bnbUsdAtSnapshot);
+  await markPayoutEpochFinalized(epochId, potUsdCents);
 
   return {
     status: "created",
     epochId: epochKey,
     rows,
     potWei: potWei.toString(),
+    potUsdCents,
+    bnbUsdAtSnapshot,
     finalizedAt: new Date().toISOString(),
     ...(epochAutoCreated ? { epochAutoCreated: true } : {}),
     ...(potSyncedFromContract ? { potSyncedFromContract: true } : {}),

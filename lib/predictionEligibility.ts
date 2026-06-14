@@ -8,7 +8,7 @@ import { fetchReplies } from "./fetchReplies";
 
 import { parsePrediction } from "./predictionParser";
 
-import { resolveMatchTweetId } from "./resolveMatchTweet";
+import { CRON_MATCH_POST_OPTIONS, resolveMatchTweetId } from "./resolveMatchTweet";
 
 
 
@@ -112,7 +112,7 @@ export async function loadEligiblePreKickoffPredictions(
 
 ): Promise<Map<string, EligiblePrediction>> {
 
-  const tweetId = await resolveMatchTweetId(fixture);
+  const tweetId = await resolveMatchTweetId(fixture, CRON_MATCH_POST_OPTIONS);
 
   if (!tweetId) {
 

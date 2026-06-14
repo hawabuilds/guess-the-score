@@ -1,0 +1,37 @@
+.social {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.socialLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  transition: color 0.15s ease, background-color 0.15s ease, opacity 0.15s ease;
+}
+
+.socialAccent .socialLink {
+  color: #2e9e3e;
+}
+
+.socialAccent .socialLink:hover {
+  opacity: 0.75;
+}
+
+.socialFooter .socialLink {
+  color: rgba(255, 255, 255, 0.25);
+}
+
+.socialFooter .socialLink:hover {
+  color: #2e9e3e;
+  background-color: rgba(46, 158, 62, 0.1);
+}
+
+.socialIcon {
+  width: 14px;
+  height: 14px;
+}

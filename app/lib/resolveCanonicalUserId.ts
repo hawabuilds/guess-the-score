@@ -62,6 +62,19 @@ async function lookupUserIdOnLiveLeaderboard(handle: string): Promise<string | n
 
 /**
  * Canonical X numeric user id for DB keys.
+ * Wallet linking does not require an existing prediction or leaderboard row.
+ */
+export async function resolveWalletUserId(
+  session: SessionLike,
+): Promise<string | null> {
+  const fromSession = getTwitterUserIdFromSession(session);
+  if (fromSession) return fromSession;
+
+  return resolveCanonicalUserId(session);
+}
+
+/**
+ * Canonical X numeric user id for DB keys.
  * 1. Numeric id on session (string-safe)
  * 2. Lookup from predictions by @handle (stale JWT / wrong OAuth sub)
  * 3. Lookup from leaderboard_snapshots by @handle (winners without a prediction row match)

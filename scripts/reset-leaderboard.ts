@@ -66,15 +66,29 @@ async function clearPredictions(useAdmin: boolean): Promise<number> {
   return data?.length ?? 0;
 }
 
+async function clearLeaderboardSnapshots(useAdmin: boolean): Promise<number> {
+  const supabase = useAdmin ? getSupabaseAdminClient() : getSupabaseClient();
+  const { data, error } = await supabase
+    .from("leaderboard_snapshots")
+    .delete()
+    .gte("epoch_id", 0)
+    .select("epoch_id");
+
+  if (error) throw new Error(`leaderboard_snapshots: ${error.message}`);
+  return data?.length ?? 0;
+}
+
 async function main() {
   const hasAdmin = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY?.trim());
   console.log("Leaderboard before:", await getLeaderboard());
 
   const predictionsDeleted = await clearPredictions(hasAdmin);
   const matchStateCleared = await clearMatchState(hasAdmin);
+  const snapshotsDeleted = await clearLeaderboardSnapshots(hasAdmin);
 
   console.log(`Cleared ${predictionsDeleted} prediction row(s).`);
   console.log(`Cleared ${matchStateCleared} match_state row(s).`);
+  console.log(`Cleared ${snapshotsDeleted} leaderboard_snapshot row(s).`);
   console.log("Leaderboard after:", await getLeaderboard());
 }
 

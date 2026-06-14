@@ -1,0 +1,94 @@
+.tableHead {
+  display: grid;
+  grid-template-columns: 28px 36px 1fr auto;
+  gap: 11px;
+  padding: 6px 12px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--w3);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 28px 36px 1fr auto;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 12px;
+  border-radius: var(--r);
+  transition: background 0.1s;
+}
+
+.rowTop {
+  box-shadow: inset 2px 0 0 var(--green);
+}
+
+.rowMe {
+  background: var(--g2);
+  border: 1px solid var(--g3);
+}
+
+.rank {
+  font-family: var(--font-dm-mono), "DM Mono", monospace;
+  font-size: 12px;
+  color: var(--w3);
+  text-align: right;
+}
+
+.rankTop {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--green);
+}
+
+.rankMe {
+  color: var(--green);
+}
+
+.handle {
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--white);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.handleMe {
+  color: var(--green);
+  font-weight: 700;
+}
+
+.points {
+  font-family: var(--font-dm-mono), "DM Mono", monospace;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--white);
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.pointsMe {
+  color: var(--green);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.listInner {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.empty {
+  padding: 16px 12px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--w3);
+}

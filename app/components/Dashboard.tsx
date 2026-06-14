@@ -8,8 +8,6 @@ import {
   getUpcomingFixtures,
   getNextKickoffSlotFixtures,
   getUpcomingFixturesOnDate,
-  formatGroupLine,
-  formatNextMatchBadge,
   type Fixture,
 } from "../data/fixtures";
 import { NAV_LOGO_SRC } from "./dashboard-assets/nav-logo";
@@ -28,6 +26,10 @@ import {
 } from "../lib/leaderboard-client";
 import { fetchClaimableRewards } from "../lib/claimable-rewards-client";
 import { bnbStr, usd } from "../data/rewards";
+import {
+  FixtureKickoffBadge,
+  FixtureKickoffGroupLine,
+} from "./FixtureKickoffDisplay";
 import AppTabBar from "./AppTabBar";
 import { TeamFlag } from "./MatchFlags";
 import LbAvatar from "./LbAvatar";
@@ -93,7 +95,10 @@ function UpcomingMatchCard({
         <div className={styles.nmLabel}>{label}</div>
         <div className={styles.nmLive}>
           <div className={styles.nmDot} />
-          {fixture.statusLabel ?? formatNextMatchBadge(fixture)}
+          <FixtureKickoffBadge
+            fixture={fixture}
+            statusLabel={fixture.statusLabel}
+          />
         </div>
       </div>
       <div className={styles.nmBody}>
@@ -118,7 +123,9 @@ function UpcomingMatchCard({
         </div>
       </div>
       <div className={styles.nmFoot}>
-        <div className={styles.nmTime}>{formatGroupLine(fixture)}</div>
+        <div className={styles.nmTime}>
+          <FixtureKickoffGroupLine fixture={fixture} />
+        </div>
         <button type="button" className={styles.nmPredict} onClick={onPredict}>
           {predictLabel}
           <XIconSmall />

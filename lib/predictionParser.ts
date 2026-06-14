@@ -31,6 +31,12 @@ const TEAM_ALIASES: Record<string, readonly string[]> = {
   Nice: ["Nice", "OGC Nice", "Les Aiglons", "Aiglons"],
   "Bosnia & Herzegovina": ["Bosnia", "BIH", "Bosnia Herzegovina"],
   "FYR Macedonia": ["Macedonia", "North Macedonia", "MK"],
+  "North Macedonia": ["FYR Macedonia", "Macedonia", "MK", "North Macedonia"],
+  Türkiye: ["Türkiye", "Turkiye", "Turkey", "TUR"],
+  Slovakia: ["Slovakia", "SVK"],
+  Malta: ["Malta", "MLT"],
+  Norway: ["Norway", "NOR"],
+  Sweden: ["Sweden", "SWE"],
   "South Africa": ["RSA", "Bafana Bafana"],
   "Curaçao": ["Curacao", "Curaçao", "Cura??ao"],
   Scotland: ["Scotland", "SCO"],
@@ -44,6 +50,15 @@ const TEAM_ALIASES: Record<string, readonly string[]> = {
   Arsenal: ["Gunners"],
   USA: ["United States", "U.S.", "US", "USMNT"],
   Senegal: ["Lions of Teranga"],
+  "South Korea": ["Korea Republic", "Korea Rep", "KOR", "South Korea"],
+  "Ivory Coast": ["Côte d'Ivoire", "Cote d'Ivoire", "CIV"],
+  "Congo DR": ["DR Congo", "DRC", "Democratic Republic of Congo"],
+  "Cape Verde Islands": ["Cape Verde", "CPV"],
+  "Czech Republic": ["Czechia", "CZE"],
+  Netherlands: ["Holland", "NED", "Netherlands"],
+  France: ["France", "FRA"],
+  "Northern Ireland": ["Northern Ireland", "NIR", "NI"],
+  Uzbekistan: ["Uzbekistan", "UZB"],
 };
 
 const SCORE_PATTERN = /(\d{1,2})\s*(?:[-:–—]|(?:\s+))\s*(\d{1,2})/;
@@ -82,7 +97,36 @@ export function textMentionsCuracaoVariant(text: string): boolean {
   return /cura(?:\?{1,2}|ç|c)?ao/.test(lower);
 }
 
-function findEarliestTeamMatch(text: string, aliases: string[]): TeamMatch | null {
+/** X may show Türkiye, Turkiye, or Turkey — all count as the same nation. */
+export function textMentionsTurkiyeVariant(text: string): boolean {
+  const lower = normalizeForTeamMatch(text);
+  return /(?:^|[^a-z0-9])(?:turkiye|turkey)(?:[^a-z0-9]|$)/.test(lower);
+}
+
+function isTurkiyeTeam(team: string): boolean {
+  return normalizeForTeamMatch(team) === "turkiye";
+}
+
+function findTurkiyeTeamMatch(text: string): TeamMatch | null {
+  if (!textMentionsTurkiyeVariant(text)) return null;
+  const lower = normalizeForTeamMatch(text);
+  const re = /(?:^|[^a-z0-9])(turkiye|turkey)(?:[^a-z0-9]|$)/;
+  const m = re.exec(lower);
+  if (!m || m.index === undefined) return null;
+  const index = m.index + (m[0].length - m[1]!.length);
+  return { index, length: m[1]!.length };
+}
+
+function findEarliestTeamMatch(
+  text: string,
+  aliases: string[],
+  canonicalTeam?: string,
+): TeamMatch | null {
+  if (canonicalTeam && isTurkiyeTeam(canonicalTeam)) {
+    const turkiye = findTurkiyeTeamMatch(text);
+    if (turkiye) return turkiye;
+  }
+
   const lower = normalizeForTeamMatch(text);
   let best: TeamMatch | null = null;
 
@@ -114,8 +158,16 @@ function findBothTeams(
   text: string,
   fixture: Pick<Fixture, "home" | "away">,
 ): FoundTeams | null {
-  const homeMatch = findEarliestTeamMatch(text, getTeamAliases(fixture.home));
-  const awayMatch = findEarliestTeamMatch(text, getTeamAliases(fixture.away));
+  const homeMatch = findEarliestTeamMatch(
+    text,
+    getTeamAliases(fixture.home),
+    fixture.home,
+  );
+  const awayMatch = findEarliestTeamMatch(
+    text,
+    getTeamAliases(fixture.away),
+    fixture.away,
+  );
   if (!homeMatch || !awayMatch) return null;
   return { homeMatch, awayMatch };
 }

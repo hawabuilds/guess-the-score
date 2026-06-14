@@ -5,7 +5,11 @@ import {
   filterFixturesForCollection,
   getFixturesDueForCollection,
 } from "@/lib/kickoff";
-import { resolveMatchPost } from "@/lib/resolveMatchTweet";
+import {
+  healStaleCollectionState,
+  shouldMarkMatchCollected,
+} from "@/lib/collectionComplete";
+import { CRON_MATCH_POST_OPTIONS, resolveMatchPost } from "@/lib/resolveMatchTweet";
 import {
   autoScoreFinishedMatches,
   getFixturesPendingAutoScore,
@@ -36,14 +40,18 @@ export async function GET(request: NextRequest) {
     },
   );
 
-  const results: Array<
-    | { matchId: number; status: "skipped"; reason: string }
-    | { matchId: number; status: "collected"; result: Awaited<ReturnType<typeof collectPredictionsForFixture>> }
-    | { matchId: number; status: "error"; error: string }
-  > = [];
+  const results: Array<Record<string, unknown>> = [];
 
   for (const fixture of dueFixtures) {
     try {
+      if (await healStaleCollectionState(fixture)) {
+        results.push({
+          matchId: fixture.id,
+          status: "healed",
+          reason: "Cleared stale collected flag (0 predictions) — will retry",
+        });
+      }
+
       if (await isMatchScored(fixture.id)) {
         results.push({
           matchId: fixture.id,
@@ -53,10 +61,7 @@ export async function GET(request: NextRequest) {
         continue;
       }
 
-      const post = await resolveMatchPost(fixture, {
-        trustCachedTweet: true,
-        discoverMaxPages: 2,
-      });
+      const post = await resolveMatchPost(fixture, CRON_MATCH_POST_OPTIONS);
       if (!post) {
         results.push({
           matchId: fixture.id,
@@ -67,8 +72,19 @@ export async function GET(request: NextRequest) {
       }
 
       const result = await collectPredictionsForFixture(fixture);
-      await markMatchCollected(fixture.id);
-      results.push({ matchId: fixture.id, status: "collected", result });
+      if (shouldMarkMatchCollected(result)) {
+        await markMatchCollected(fixture.id);
+        results.push({ matchId: fixture.id, status: "collected", result });
+      } else {
+        results.push({
+          matchId: fixture.id,
+          status: "skipped",
+          reason:
+            "No replies on match post — not marking collected (will retry; check tweet id)",
+          tweetId: post.tweetId,
+          result,
+        });
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Collection failed";
       results.push({ matchId: fixture.id, status: "error", error: message });

@@ -34,7 +34,7 @@ async function main() {
 
   await sb
     .from("payout_epochs")
-    .update({ finalized_at: null })
+    .update({ finalized_at: null, pot_usd_cents: null })
     .eq("epoch_id", EPOCH_ID);
 
   console.log(`Cleared snapshot + finalization for epoch ${EPOCH_ID}.`);

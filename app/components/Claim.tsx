@@ -38,7 +38,6 @@ import { useClaimOnChain } from "../lib/useClaimOnChain";
 import { useLinkPayoutWallet } from "../lib/useLinkPayoutWallet";
 
 import AppTabBar from "./AppTabBar";
-
 import NavUserControl from "./NavUserControl";
 
 import CelebrationCard, { type ShareCardData } from "./CelebrationCard";
@@ -47,16 +46,36 @@ import { TROPHY_SRC } from "./dashboard-assets/trophy";
 
 import styles from "./Claim.module.css";
 
+function markRewardClaimed(
+  rewards: ClaimableRewardDto[],
+  id: string,
+  bnb: number,
+): ClaimableRewardDto[] {
+  return rewards.map((r) =>
+    r.id === id ? { ...r, claimed: true, bnb } : r,
+  );
+}
+
+function mergeClaimedRewards(
+  prev: ClaimableRewardDto[],
+  fresh: ClaimableRewardDto[],
+): ClaimableRewardDto[] {
+  const claimedById = new Map(
+    prev.filter((r) => r.claimed).map((r) => [r.id, r] as const),
+  );
+  return fresh.map((r) => {
+    const local = claimedById.get(r.id);
+    if (!local) return r;
+    return { ...r, claimed: true, bnb: local.bnb };
+  });
+}
+
 
 
 const figtree = Figtree({
-
   subsets: ["latin"],
-
   weight: ["400", "500", "600", "700", "800", "900"],
-
   variable: "--font-figtree",
-
 });
 
 
@@ -149,6 +168,8 @@ export default function Claim({
 
   const tt = useTranslations("tiers");
 
+  const tCelebration = useTranslations("celebrationCard");
+
   const { status } = useSession();
 
   const { isConnected, connector } = useAccount();
@@ -192,13 +213,9 @@ export default function Claim({
 
 
   const reloadRewards = useCallback(async () => {
-
     const data = await fetchClaimableRewards();
-
-    setRewards(data);
-
+    setRewards((prev) => mergeClaimedRewards(prev, data));
     return data;
-
   }, []);
 
 
@@ -442,14 +459,11 @@ export default function Claim({
     if (!result.ok) {
       if (/already claimed|voucher used/i.test(result.error ?? "")) {
         setExplorerLink(null);
+        setRewards((prev) => markRewardClaimed(prev, reward.id, claimedBnb));
         try {
           await reloadRewards();
         } catch {
-          setRewards((prev) =>
-            prev.map((r) =>
-              r.id === reward.id ? { ...r, claimed: true, bnb: claimedBnb } : r,
-            ),
-          );
+          /* keep local claimed state */
         }
         showCelebrationForReward(reward, claimedBnb, celebrationExtra);
         return true;
@@ -467,14 +481,12 @@ export default function Claim({
       );
     }
 
+    setRewards((prev) => markRewardClaimed(prev, reward.id, claimedBnb));
+
     try {
       await reloadRewards();
     } catch {
-      setRewards((prev) =>
-        prev.map((r) =>
-          r.id === reward.id ? { ...r, claimed: true, bnb: claimedBnb } : r,
-        ),
-      );
+      /* keep local claimed state */
     }
 
     showCelebrationForReward(reward, claimedBnb, celebrationExtra);
@@ -526,6 +538,8 @@ export default function Claim({
 
     let total = 0;
 
+    const claimedLocally: { id: string; bnb: number }[] = [];
+
     for (const reward of pending) {
       setClaimingId(reward.id);
 
@@ -536,6 +550,10 @@ export default function Claim({
           claimedCount += 1;
           total += result.amountBnb ?? reward.bnb;
           lastReward = reward;
+          claimedLocally.push({
+            id: reward.id,
+            bnb: result.amountBnb ?? reward.bnb,
+          });
           continue;
         }
         showToast(result.error ?? t("claimFailed"));
@@ -545,6 +563,10 @@ export default function Claim({
       claimedCount += 1;
       total += result.amountBnb ?? reward.bnb;
       lastReward = reward;
+      claimedLocally.push({
+        id: reward.id,
+        bnb: result.amountBnb ?? reward.bnb,
+      });
     }
 
 
@@ -559,14 +581,17 @@ export default function Claim({
 
 
 
+    setRewards((prev) =>
+      claimedLocally.reduce(
+        (list, item) => markRewardClaimed(list, item.id, item.bnb),
+        prev,
+      ),
+    );
+
     try {
-
       await reloadRewards();
-
     } catch {
-
-      /* keep local optimistic state */
-
+      /* keep local claimed state */
     }
 
 
@@ -617,9 +642,7 @@ export default function Claim({
 
     }
 
-
-
-    if (loading) {
+    if (status === "loading" || loading) {
 
       return (
 
@@ -1028,115 +1051,66 @@ export default function Claim({
 
 
   return (
-
     <div
-
       id="s-claim"
-
       className={`${styles.root} ${figtree.variable} ${dmMono.variable}`}
-
     >
-
       <div className={styles.app}>
-
         <nav className={styles.nav}>
-
           <button
-
             type="button"
-
             className={styles.navBack}
-
             onClick={onGoToDashboard}
-
           >
-
             <svg
-
               viewBox="0 0 24 24"
-
               fill="none"
-
               stroke="currentColor"
-
               strokeWidth="2.5"
-
               aria-hidden
-
             >
-
               <polyline points="15 18 9 12 15 6" />
-
             </svg>
-
             {tc("back")}
-
           </button>
-
           <div className={styles.navTitle}>{t("navTitle")}</div>
-
           <NavUserControl />
-
         </nav>
 
-
-
         <div className={styles.claimPre}>
-
           <div className={styles.body}>{renderBody()}</div>
-
         </div>
-
-
 
         <AppTabBar
-
           activeTab="claim"
-
           onHome={onGoToDashboard}
-
           onRanks={onGoToLeaderboard}
-
           onWallet={onGoToWallet}
-
           onClaim={() => {}}
-
         />
-
-
 
         <div
-
           className={`${styles.toast}${toast ? ` ${styles.toastShow}` : ""}`}
-
           role="status"
-
           aria-live="polite"
-
         >
-
           {toast ?? ""}
-
         </div>
 
-
-
         <CelebrationCard
-
           open={celebration !== null}
-
           data={celebration}
-
           onClose={closeCelebration}
-
-          onShareFallback={() => showToast(t("toastOpeningX"))}
-
+          onShareFallback={({ imageCopied }) =>
+            showToast(
+              imageCopied
+                ? tCelebration("sharePasteHint")
+                : t("toastOpeningX"),
+            )
+          }
         />
-
       </div>
-
     </div>
-
   );
 
 }

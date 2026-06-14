@@ -1,5 +1,6 @@
 import type { Fixture } from "@/app/data/fixtures";
 import { fixtureDateTime } from "@/app/data/fixtures";
+import { fixtureAutoSettlesFromApi } from "@/lib/fixtureAutoSettle";
 import {
   ApiFootballBudgetError,
   fetchLiveMatch,
@@ -18,6 +19,7 @@ export type EnrichedFixture = Fixture & {
 /** Only call API for fixtures near kickoff (saves quota on old/future games). */
 export const ENRICH_API_HOURS_BEFORE_KICKOFF = 36;
 export const ENRICH_API_HOURS_AFTER_KICKOFF = 4;
+export const ENRICH_API_HOURS_AFTER_KICKOFF_WORLD_CUP = 6;
 
 /** Max live API lookups per /api/matches request. */
 export const ENRICH_API_MAX_CALLS_PER_REQUEST = 2;
@@ -32,9 +34,13 @@ export function shouldEnrichFixtureFromApi(
   const hoursUntil = (kickoffMs - now.getTime()) / (60 * 60 * 1000);
   const hoursSince = -hoursUntil;
 
+  const maxHoursAfter = fixtureAutoSettlesFromApi(fixture)
+    ? ENRICH_API_HOURS_AFTER_KICKOFF_WORLD_CUP
+    : ENRICH_API_HOURS_AFTER_KICKOFF;
+
   return (
     hoursUntil <= ENRICH_API_HOURS_BEFORE_KICKOFF &&
-    hoursSince <= ENRICH_API_HOURS_AFTER_KICKOFF
+    hoursSince <= maxHoursAfter
   );
 }
 

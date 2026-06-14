@@ -90,6 +90,7 @@ alter table user_wallets enable row level security;
 create table if not exists payout_epochs (
   epoch_id bigint primary key,
   pot_wei text not null,
+  pot_usd_cents integer,
   finalized_at timestamptz,
   created_at timestamptz not null default now()
 );
@@ -114,3 +115,55 @@ create index if not exists leaderboard_snapshots_epoch_rank_idx
 alter table leaderboard_snapshots enable row level security;
 
 -- No policies on payout_epochs or leaderboard_snapshots — service_role only (API + crons).
+
+-- Admin-posted bounties (guessthescore.xyz/bounty). Written only via API + service_role.
+create table if not exists bounties (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  description text not null,
+  image_path text,
+  reward_wei text not null,
+  deadline_at timestamptz not null,
+  winner_submission_id uuid,
+  winner_selected_at timestamptz,
+  claim_started_at timestamptz,
+  paid_tx_hash text,
+  paid_at timestamptz,
+  created_by text not null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists bounties_deadline_idx on bounties (deadline_at desc);
+
+-- Migration for databases created before cover images existed.
+alter table bounties add column if not exists image_path text;
+
+-- One submission per user per bounty (video upload + social post link).
+create table if not exists bounty_submissions (
+  id uuid primary key default gen_random_uuid(),
+  bounty_id uuid not null references bounties(id) on delete cascade,
+  user_id text not null,
+  user_handle text not null,
+  video_path text not null,
+  social_post_url text not null,
+  created_at timestamptz not null default now(),
+  unique (bounty_id, user_id)
+);
+
+create index if not exists bounty_submissions_bounty_idx
+  on bounty_submissions (bounty_id, created_at);
+
+alter table bounties enable row level security;
+alter table bounty_submissions enable row level security;
+
+-- No anon policies — all reads/writes go through Next.js API routes using service_role.
+
+-- Public bucket for bounty submission videos (uploads via signed URLs from the API).
+insert into storage.buckets (id, name, public)
+values ('bounty-videos', 'bounty-videos', true)
+on conflict (id) do nothing;
+
+-- Public bucket for bounty cover images (admin uploads via signed URLs from the API).
+insert into storage.buckets (id, name, public)
+values ('bounty-images', 'bounty-images', true)
+on conflict (id) do nothing;

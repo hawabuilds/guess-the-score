@@ -5,6 +5,11 @@ export type Fixture = {
   date: string;
   time: string;
   group: string;
+  /**
+   * Fetch final score from API-Football after full time (90+injury) without waiting
+   * for X collection. Defaults on for group names containing "World Cup".
+   */
+  autoSettleFromApi?: boolean;
   /** When true, match is void — no collection, scoring, or UI listing. */
   cancelled?: boolean;
   tweetId?: string;
@@ -16,6 +21,11 @@ export type Fixture = {
     awayScore: number;
   };
 };
+
+import { WORLD_CUP_2026_FIXTURES } from "./worldCup2026Fixtures";
+
+/** Re-enable full tournament: spread `...WORLD_CUP_2026_FIXTURES` into FIXTURES below. */
+export { WORLD_CUP_2026_FIXTURES };
 
 /**
  * Flag codes for country-flag-icons/react/3x2 (ISO 3166-1 alpha-2 or GB subdivisions).
@@ -47,6 +57,45 @@ export const TEAM_COUNTRY_CODES: Record<string, CountryCode> = {
   Senegal: "SN",
   Brazil: "BR",
   Panama: "PA",
+  Slovakia: "SK",
+  Malta: "MT",
+  Norway: "NO",
+  Sweden: "SE",
+  Türkiye: "TR",
+  "North Macedonia": "MK",
+  Mexico: "MX",
+  "South Korea": "KR",
+  "Czech Republic": "CZ",
+  Canada: "CA",
+  Paraguay: "PY",
+  Qatar: "QA",
+  Switzerland: "CH",
+  Morocco: "MA",
+  Haiti: "HT",
+  Australia: "AU",
+  Netherlands: "NL",
+  Japan: "JP",
+  "Ivory Coast": "CI",
+  Ecuador: "EC",
+  Tunisia: "TN",
+  Spain: "ES",
+  "Cape Verde Islands": "CV",
+  Belgium: "BE",
+  Egypt: "EG",
+  "Saudi Arabia": "SA",
+  Uruguay: "UY",
+  "New Zealand": "NZ",
+  France: "FR",
+  Argentina: "AR",
+  Algeria: "DZ",
+  Austria: "AT",
+  Jordan: "JO",
+  Portugal: "PT",
+  "Congo DR": "CD",
+  Croatia: "HR",
+  Ghana: "GH",
+  Uzbekistan: "UZ",
+  Colombia: "CO",
 };
 
 export function getTeamCountryCode(team: string): CountryCode | null {
@@ -64,122 +113,15 @@ export function getTeamCountryCode(team: string): CountryCode | null {
 }
 
 /**
- * Do not reuse ids already stored in Supabase (predictions + leaderboard are per match_id).
- * Ids 1–2 = 28 May slate; 3–4 may exist from earlier tests — append new days with new ids only.
+ * Do not reuse match_ids that already have predictions in Supabase.
+ * World Cup 2026: ids 1–72 in app/data/worldCup2026Fixtures.ts.
+ *
+ * Match posts: set tweetId from @guessthescoreX when the post is live (best reliability).
+ * Otherwise sync/kickoff crons validate cache + search X before collection.
  */
-export const MATCH_ID_LEGACY_RESERVED_THROUGH = 5;
 
-/** Active + recent slates — append new days with new match_ids only (see MATCH_ID_LEGACY_RESERVED_THROUGH). */
-export const FIXTURES: Fixture[] = [
-  /** Fri 29 May 2026 UTC */
-  {
-    id: 6,
-    home: "Iran",
-    away: "Gambia",
-    date: "2026-05-29",
-    time: "15:30",
-    group: "International Friendly",
-    externalFixtureId: 1544803,
-  },
-  {
-    id: 7,
-    home: "South Africa",
-    away: "Nicaragua",
-    date: "2026-05-29",
-    time: "16:00",
-    group: "International Friendly",
-    externalFixtureId: 1543817,
-  },
-  {
-    id: 8,
-    home: "Iraq",
-    away: "Andorra",
-    date: "2026-05-29",
-    time: "16:00",
-    group: "International Friendly",
-    externalFixtureId: 1544356,
-  },
-  {
-    id: 9,
-    home: "Lebanon",
-    away: "Sudan",
-    date: "2026-05-29",
-    time: "16:00",
-    group: "International Friendly",
-    externalFixtureId: 1546837,
-    cancelled: true,
-  },
-  {
-    id: 10,
-    home: "Bosnia & Herzegovina",
-    away: "FYR Macedonia",
-    date: "2026-05-29",
-    time: "18:30",
-    group: "International Friendly",
-    externalFixtureId: 1540947,
-    result: { homeScore: 0, awayScore: 0 },
-  },
-  /** Sat 30 May 2026 UTC */
-  {
-    id: 11,
-    home: "Scotland",
-    away: "Curaçao",
-    date: "2026-05-30",
-    time: "12:00",
-    group: "International Friendly",
-    externalFixtureId: 1511779,
-    /** @guessthescoreX match post — avoids X search when API mangles Curaçao in tweet text */
-    tweetId: "2060501091976933875",
-  },
-  {
-    id: 12,
-    home: "Paris Saint Germain",
-    away: "Arsenal",
-    date: "2026-05-30",
-    time: "16:00",
-    group: "UEFA Champions League Final",
-    externalFixtureId: 1544371,
-    /** Regulation score 1–1 (API-Football); used if auto-score cron missed PEN/FT window */
-    result: { homeScore: 1, awayScore: 1 },
-  },
-  /** Sun 31 May 2026 UTC — International Friendlies */
-  {
-    id: 13,
-    home: "Poland",
-    away: "Ukraine",
-    date: "2026-05-31",
-    time: "15:30",
-    group: "International Friendly",
-    externalFixtureId: 1544805,
-  },
-  {
-    id: 14,
-    home: "Germany",
-    away: "Finland",
-    date: "2026-05-31",
-    time: "18:45",
-    group: "International Friendly",
-    externalFixtureId: 1501818,
-  },
-  {
-    id: 15,
-    home: "USA",
-    away: "Senegal",
-    date: "2026-05-31",
-    time: "19:30",
-    group: "International Friendly",
-    externalFixtureId: 1503008,
-  },
-  {
-    id: 16,
-    home: "Brazil",
-    away: "Panama",
-    date: "2026-05-31",
-    time: "21:30",
-    group: "International Friendly",
-    externalFixtureId: 1536926,
-  },
-];
+/** Active slate — FIFA World Cup 2026 group stage (match ids 1–72). */
+export const FIXTURES: Fixture[] = [...WORLD_CUP_2026_FIXTURES];
 
 export function getFixtureById(
   matchId: number,
@@ -195,7 +137,9 @@ export function fixtureCacheKey(
   return `${fixture.home}|${fixture.away}|${fixture.date}`;
 }
 
-export function fixtureDateTime(fixture: Fixture): Date {
+export function fixtureDateTime(
+  fixture: Pick<Fixture, "date" | "time">,
+): Date {
   return new Date(`${fixture.date}T${fixture.time}:00Z`);
 }
 
@@ -227,6 +171,71 @@ export function getUpcomingFixtures(
     .sort(
       (a, b) => fixtureDateTime(a).getTime() - fixtureDateTime(b).getTime(),
     );
+}
+
+export function isWorldCupFixture(
+  fixture: Pick<Fixture, "group">,
+): boolean {
+  return /world\s*cup/i.test(fixture.group);
+}
+
+export const LANDING_PREVIEW_LIMIT = 3;
+
+export function getLandingUpcomingFixtures(
+  fixtures: Fixture[] = FIXTURES,
+  now: Date = new Date(),
+  limit = LANDING_PREVIEW_LIMIT,
+): Fixture[] {
+  return getUpcomingFixtures(fixtures, now).slice(0, limit);
+}
+
+export const LANDING_DAY_WINDOW = 2;
+
+/**
+ * Landing page: upcoming fixtures for a sliding UTC date window.
+ */
+export function getLandingFixturesForWindow(
+  fixtures: Fixture[] = FIXTURES,
+  now: Date = new Date(),
+  startDateIndex = 0,
+  dayCount = LANDING_DAY_WINDOW,
+): Fixture[] {
+  const upcoming = getUpcomingFixtures(fixtures, now);
+  const dates = getUpcomingDateWindow(upcoming, startDateIndex, dayCount);
+  return getUpcomingFixturesForDates(upcoming, dates);
+}
+
+export function getUniqueUpcomingDates(
+  upcoming: Pick<Fixture, "date">[],
+): string[] {
+  const seen = new Set<string>();
+  const dates: string[] = [];
+  for (const fixture of upcoming) {
+    if (seen.has(fixture.date)) continue;
+    seen.add(fixture.date);
+    dates.push(fixture.date);
+  }
+  return dates;
+}
+
+export function getUpcomingDateWindow(
+  upcoming: Pick<Fixture, "date">[],
+  startDateIndex: number,
+  dayCount = LANDING_DAY_WINDOW,
+): string[] {
+  return getUniqueUpcomingDates(upcoming).slice(
+    startDateIndex,
+    startDateIndex + dayCount,
+  );
+}
+
+export function getUpcomingFixturesForDates<T extends Pick<Fixture, "date">>(
+  upcoming: T[],
+  dates: string[],
+): T[] {
+  if (dates.length === 0) return [];
+  const allowed = new Set(dates);
+  return upcoming.filter((fixture) => allowed.has(fixture.date));
 }
 
 export function getNextFixture(
@@ -261,6 +270,10 @@ export function getUpcomingFixturesOnDate<T extends Pick<Fixture, "date">>(
 
 export function formatKickoffUtc(fixture: Fixture): string {
   return `${fixture.time} UTC`;
+}
+
+export function formatFixtureKickoffLine(fixture: Fixture): string {
+  return `${formatFixtureDateShort(fixture.date)} · ${formatKickoffUtc(fixture)}`;
 }
 
 export function formatFixtureLabel(fixture: Fixture): string {

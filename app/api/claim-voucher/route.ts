@@ -24,6 +24,11 @@ import {
   readPublicPayoutConfig,
 } from "@/lib/payoutContract";
 import {
+  payoutChainLabel,
+  payoutNativeSymbol,
+  resolvePayoutChainId,
+} from "@/app/lib/payoutChainMeta";
+import {
   readNewEpochPotWei,
   resolveEffectiveEpochPotWei,
   syncPayoutEpochPotFromChain,
@@ -121,6 +126,13 @@ export async function POST(request: NextRequest) {
   const to = toAddress as Address;
 
   try {
+    const payoutConfig = readPublicPayoutConfig();
+    const payoutChainId = resolvePayoutChainId(
+      payoutConfig ? Number(payoutConfig.chainId) : undefined,
+    );
+    const nativeSymbol = payoutNativeSymbol(payoutChainId);
+    const chainLabel = payoutChainLabel(payoutChainId);
+
     const epoch = await getPayoutEpoch(epochId);
     if (!epoch?.finalized_at) {
       return NextResponse.json(
@@ -136,7 +148,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           {
             error:
-              "Server SIGNER_PRIVATE_KEY does not match the payout contract signer address — fix Vercel env to use the same key you set in the Remix constructor",
+              "Server SIGNER_PRIVATE_KEY does not match the ScorePayout signer address — fix Vercel env to use the same key passed to the constructor",
           },
           { status: 503 },
         );
@@ -151,7 +163,7 @@ export async function POST(request: NextRequest) {
         const balance = newEpochPot?.balance.toString() ?? "?";
         return NextResponse.json(
           {
-            error: `No unreserved tBNB for a new epoch (balance ${balance} wei, reserved on-chain ${reserved} wei). Fund the contract or wait for prior claims.`,
+            error: `No unreserved ${nativeSymbol} for a new epoch (balance ${balance} wei, reserved on-chain ${reserved} wei). Fund the contract or wait for prior claims.`,
           },
           { status: 503 },
         );
@@ -164,7 +176,7 @@ export async function POST(request: NextRequest) {
       if (opened.status === "skipped") {
         return NextResponse.json(
           {
-            error: `${opened.reason}. Until openEpoch runs, claims will fail with "epoch not open" on BSC Testnet`,
+            error: `${opened.reason}. Until openEpoch runs, claims will fail with "epoch not open" on ${chainLabel}`,
           },
           { status: 503 },
         );
@@ -221,7 +233,6 @@ export async function POST(request: NextRequest) {
     }
 
     const voucherId = computeVoucherId(epochId, userId);
-    const payoutConfig = readPublicPayoutConfig();
     if (payoutConfig) {
       try {
         const alreadyClaimed = await isVoucherClaimedOnChain(

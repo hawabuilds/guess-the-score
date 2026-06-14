@@ -1,7 +1,14 @@
 {
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "installCommand": "npm install",
   "crons": [
     {
       "path": "/api/cron/kickoff",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/score-finished",
       "schedule": "*/5 * * * *"
     },
     {

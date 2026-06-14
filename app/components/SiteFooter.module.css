@@ -1,0 +1,30 @@
+.footer {
+  flex-shrink: 0;
+  padding: 20px 24px calc(16px + env(safe-area-inset-bottom));
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.sep {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.25);
+}
+
+.link {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.25);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  letter-spacing: 0.02em;
+  transition: color 0.15s ease;
+}
+
+.link:hover {
+  color: #2e9e3e;
+}

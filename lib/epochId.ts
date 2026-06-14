@@ -6,6 +6,26 @@ export function epochIdForDate(date: Date = new Date()): bigint {
   return BigInt(`${y}${m}${d}`);
 }
 
+/**
+ * Optional launch gate: set FIRST_SNAPSHOT_EPOCH_ID=YYYYMMDD (UTC) on the server.
+ * Snapshot cron skips all days before this epoch id.
+ */
+export function getFirstSnapshotEpochId(): bigint | null {
+  const raw = process.env.FIRST_SNAPSHOT_EPOCH_ID?.trim();
+  if (!raw || !/^\d{8}$/.test(raw)) return null;
+  try {
+    const value = BigInt(raw);
+    return value > 0n ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+export function isBeforeFirstSnapshotEpoch(epochId: bigint): boolean {
+  const first = getFirstSnapshotEpochId();
+  return first !== null && epochId < first;
+}
+
 export function parseEpochId(raw: unknown): bigint | null {
   if (typeof raw === "number" && Number.isInteger(raw) && raw > 0) {
     return BigInt(raw);

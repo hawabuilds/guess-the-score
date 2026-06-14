@@ -8,19 +8,30 @@ type LbAvatarProps = {
   initials: string;
   me?: boolean;
   imageSrc?: string;
+  size?: "sm" | "md" | "lg";
 };
+
+const SIZE_CLASS = {
+  sm: styles.lbAvSm,
+  md: styles.lbAvMd,
+  lg: styles.lbAvLg,
+} as const;
 
 export default function LbAvatar({
   username,
   initials,
   me,
   imageSrc,
+  size = "sm",
 }: LbAvatarProps) {
   const [failed, setFailed] = useState(false);
-  const avClass = me ? `${styles.lbAv} ${styles.lbAvMe}` : styles.lbAv;
+  const sizeClass = SIZE_CLASS[size];
+  const avClass = me
+    ? `${styles.lbAv} ${sizeClass} ${styles.lbAvMe}`
+    : `${styles.lbAv} ${sizeClass}`;
   const fallbackClass = me
-    ? `${styles.lbAv} ${styles.lbAvMe} ${styles.lbAvMeFallback}`
-    : `${styles.lbAv} ${styles.lbAvFallback}`;
+    ? `${styles.lbAv} ${sizeClass} ${styles.lbAvMe} ${styles.lbAvMeFallback}`
+    : `${styles.lbAv} ${sizeClass} ${styles.lbAvFallback}`;
 
   if (failed) {
     return <div className={fallbackClass}>{initials}</div>;

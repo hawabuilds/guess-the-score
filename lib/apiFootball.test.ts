@@ -51,4 +51,40 @@ assert.equal(
   "FT without fullTime => null",
 );
 
+const penFinal: FootballDataMatch = {
+  id: 1544371,
+  status: "PEN",
+  homeTeam: { name: "PSG" },
+  awayTeam: { name: "Arsenal" },
+  score: {
+    fullTime: { home: 1, away: 1 },
+    extraTime: { home: 1, away: 1 },
+    penalty: { home: 5, away: 4 },
+  },
+};
+
+assert.deepEqual(
+  resolveFinalScoreFromApiMatch(penFinal, kickoffMs, afterWindow, 105),
+  { homeScore: 1, awayScore: 1 },
+  "PEN status settles 90+injury, not shootout",
+);
+
+assert.deepEqual(
+  resolveFinalScoreFromApiMatch(
+    {
+      ...penFinal,
+      status: "AET",
+      score: {
+        fullTime: { home: 1, away: 1 },
+        extraTime: { home: 2, away: 1 },
+      },
+    },
+    kickoffMs,
+    afterWindow,
+    105,
+  ),
+  { homeScore: 1, awayScore: 1 },
+  "AET still settles on fulltime (90+injury)",
+);
+
 console.log("apiFootball.test.ts: ok");

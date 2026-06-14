@@ -4,6 +4,10 @@ import type { ClaimVoucherResponse } from "@/app/lib/claim-voucher-client";
 import type { ClientPayoutConfig } from "@/app/lib/payout-config-client";
 import { formatClaimError } from "@/app/lib/formatClaimError";
 import {
+  payoutChainLabel,
+  resolvePayoutChainId,
+} from "@/app/lib/payoutChainMeta";
+import {
   getAccount,
   switchChain,
   waitForTransactionReceipt,
@@ -16,12 +20,13 @@ type WagmiPayoutChainId = (typeof config)["chains"][number]["id"];
 const RECEIPT_TIMEOUT_MS = 60_000;
 
 function toWagmiChainId(chainId: number): WagmiPayoutChainId {
-  if (chainId !== 97 && chainId !== 56) {
+  const payoutChainId = resolvePayoutChainId(chainId);
+  if (payoutChainId !== 97 && payoutChainId !== 56) {
     throw new Error(
-      `Unsupported payout chain ${chainId} — use BSC Testnet (97) or BSC (56)`,
+      `Unsupported payout chain ${payoutChainId} — use BSC Testnet (97) or BSC (56)`,
     );
   }
-  return chainId;
+  return payoutChainId;
 }
 
 function normalizeBytes32(value: string): Hex {
@@ -62,7 +67,7 @@ export async function ensurePayoutChainSelected(
   }
 
   throw new Error(
-    "MetaMask must be on BSC Testnet (chain 97). Switch network in MetaMask, then press Claim again.",
+    `MetaMask must be on ${payoutChainLabel(wagmiChainId)} (chain ${wagmiChainId}). Switch network in MetaMask, then press Claim again.`,
   );
 }
 
@@ -99,7 +104,7 @@ export async function submitClaimTransaction(
 
   if (active.chainId !== wagmiChainId) {
     throw new Error(
-      "Wrong network in MetaMask — switch to BSC Testnet, then press Claim again",
+      `Wrong network in MetaMask — switch to ${payoutChainLabel(wagmiChainId)}, then press Claim again`,
     );
   }
 
