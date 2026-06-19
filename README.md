@@ -17,6 +17,10 @@ The first version of my football score-prediction game — a web app where you s
 - wagmi + RainbowKit on the client; payouts settle in native BNB through a `ScorePayout` contract on BNB Smart Chain using signed claim vouchers (the prize pool is funded in part by $SCORE token taxes)
 - Vercel, with cron routes for kickoff collection and match scoring
 
+## Smart contract
+
+The payout contract lives at [`contracts/ScorePayout.sol`](contracts/ScorePayout.sol). It holds the BNB prize pool and pays winners against off-chain **signed vouchers**: the server signs `(contract, chainId, epochId, to, amount, voucherId)`, and `claim()` recovers the signer and releases funds. Each voucher is single-use (replay-protected), epochs are capped by `totalReserved` so claims can never exceed funds held, and claims are `nonReentrant`.
+
 ## The parts that took the most work
 
 - Making MetaMask claims reliable, and restoring the celebration/share card when users return to the app from the wallet.
