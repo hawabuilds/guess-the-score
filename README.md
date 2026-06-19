@@ -2,6 +2,8 @@
 
 The first version of my football score-prediction game — a web app where you sign in with X, connect a wallet, predict match scorelines, and climb a daily leaderboard for on-chain BNB payouts. (Copa Mundial is the follow-up rebuild of this idea.)
 
+Live at [guessthescore.xyz](https://guessthescore.xyz).
+
 ## How it works
 
 - Sign in with X and connect a wallet (MetaMask via RainbowKit).
